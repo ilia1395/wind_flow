@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { VectorFieldRenderer } from './Features/VectorField/VectorFieldRenderer';
 import { VectorFieldControls } from './Features/VectorField/VectorFieldControls';
-import { PlaybackControls } from './Features/Playback Controls/PlaybackControls';
+import { PlaybackControls } from './Features/PlaybackControls/PlaybackControls';
 import {
   createFieldSamplerForFrame,
   parseWindCsv,
   parseMastCsvByHeights,
   createLayeredFieldSampler,
   type WindFrame,
-} from './windData';
+} from './Features/DataLoading/windData';
 // Import CSV via Vite as URL; user can replace this path or load via input
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -210,12 +210,14 @@ function App() {
           heightSlices={heightOrder.length ? heightOrder : undefined}
           statusText={statusText}
         />
-      </div>
-      {/* Bottom-centered controls */}
+
+        {/* Bottom-centered controls */}
       <div
         style={{
-          display: 'grid',
-          gridColumn: '2 / -2',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
           pointerEvents: 'none',
           gap: '8px',
           height: 'auto',
@@ -245,6 +247,8 @@ function App() {
           />
         </div>
       </div>
+      </div>
+      
     </div>
   );
 }

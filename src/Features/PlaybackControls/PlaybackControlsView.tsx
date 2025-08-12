@@ -52,16 +52,19 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
           <option value={256}>256x</option>
         </select>
       </label>
-      <span style={{ minWidth: '50px', textAlign: 'right' }}>{displayTimeLabel}</span>
-      <input
-        type="range"
-        min={0}
-        max={Math.max(0, timelineLength - 1)}
-        step={1}
-        value={clampedIndex}
-        onChange={(e) => onFrameIndexChange(Number(e.target.value))}
-        style={{ width: '50%' }}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4} }>
+        <span style={{ minWidth: '130px', textAlign: 'right' }}>{displayTimeLabel}</span>
+        <input
+            type="range"
+            min={0}
+            max={Math.max(0, timelineLength - 1)}
+            step={1}
+            value={clampedIndex}
+            onChange={(e) => onFrameIndexChange(Number(e.target.value))}
+            style={{ minWidth: '230px'}}
+        />
+      </div>
+      
     </div>
   );
 };

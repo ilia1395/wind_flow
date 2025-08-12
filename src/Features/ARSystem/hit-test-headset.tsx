@@ -1,4 +1,4 @@
-import { Reticle } from './reticle.ts'
+import { Reticle } from './reticle.tsx'
 
 export const HitTestHeadset = () => {
   return (

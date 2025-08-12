@@ -5,7 +5,7 @@ type PlaybackControlsProps = {
   timelineLength: number;
   displayTimeLabel?: string;
   initialPlaybackRate?: number;
-  // Notify parent about state if needed
+  // Notify parent about state changes
   onFrameIndexChange?: (index: number) => void;
   onIsPlayingChange?: (isPlaying: boolean) => void;
   onPlaybackRateChange?: (rate: number) => void;
