@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { VectorFieldRenderer } from './VectorFieldRenderer';
+import { VectorFieldRenderer } from './Features/VectorField/VectorFieldRenderer';
+import { VectorFieldControls } from './Features/VectorField/VectorFieldControls';
+import { PlaybackControls } from './Features/Playback Controls/PlaybackControls';
 import {
   createFieldSamplerForFrame,
   parseWindCsv,
@@ -22,7 +24,8 @@ function App() {
   const [numParticles, setNumParticles] = useState(1000);
   const [turbulenceStrength, setTurbulenceStrength] = useState(0.05);
   const [damping, setDamping] = useState(0.9);
-  const [playbackRate, setPlaybackRate] = useState(1); // 1x, 2x, 4x...
+  // playbackRate is managed inside PlaybackControls; we mirror it here only if needed
+  const [_playbackRate, setPlaybackRate] = useState(1);
 
   // Demo fallback if no data loaded
   const demoFrames = useMemo<WindFrame[]>(() => {
@@ -148,18 +151,12 @@ function App() {
       last = now;
       if (isPlaying) {
         setTime((t) => t + dt);
-        // advance frame roughly every 0.5s over the available timeline (base 2 fps)
-        const len = timelineInfo.length;
-        if (dt > 0 && len > 0) {
-          const framesPerSecond = 2 * playbackRate;
-          setFrameIndex((i) => (i + dt * framesPerSecond) % len);
-        }
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, timelineInfo.length, playbackRate]);
+  }, [isPlaying]);
 
   function onCsvSelected(file: File) {
     file.text().then(async (txt) => {
@@ -199,44 +196,9 @@ function App() {
   }, []);
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: 'auto minmax(0,1fr)', height: '100dvh' }}>
-      <div style={{ padding: 8, display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <label>
-          Speed x
-          <input type="range" min={0.2} max={3} step={0.1} value={speedMultiplier} onChange={(e) => setSpeedMultiplier(Number(e.target.value))} />
-          {speedMultiplier.toFixed(1)}
-        </label>
-        <label>
-          Particles
-          <input type="range" min={50} max={1000} step={50} value={numParticles} onChange={(e) => setNumParticles(Number(e.target.value))} />
-          {numParticles}
-        </label>
-        <label>
-          Damping
-          <input type="range" min={0} max={1} step={0.05} value={damping} onChange={(e) => setDamping(Number(e.target.value))} />
-          {damping.toFixed(2)}
-        </label>
-        <label>
-          Turbulence
-          <input type="range" min={0} max={1} step={0.05} value={turbulenceStrength} onChange={(e) => setTurbulenceStrength(Number(e.target.value))} />
-          {turbulenceStrength.toFixed(2)}
-        </label>
-        <label>
-          Load CSV
-          <input type="file" accept=".csv" onChange={(e) => e.target.files && e.target.files[0] && onCsvSelected(e.target.files[0])} />
-        </label>
-        <span>Frame: {Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineInfo.length - 1)) + 1}/{timelineInfo.length}</span>
-        {heightOrder.length > 0 && (
-          <span style={{ marginLeft: 12 }}>
-            Loaded layered CSV: heights [{heightOrder.join(', ')}] — per-height frames: {
-              heightOrder
-                .map((h) => `${h}m:${(framesByHeight[h] || []).length}`)
-                .join(' | ')
-            }
-          </span>
-        )}
-      </div>
-      <div style={{ position: 'relative' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', height: '100vh', width: '100vw' }}>
+      
+      <div style={{ position: 'relative', height: '600px', gridColumn: '1 / -1' }}>
         <VectorFieldRenderer
           bounds={bounds}
           speedMultiplier={speedMultiplier}
@@ -248,53 +210,39 @@ function App() {
           heightSlices={heightOrder.length ? heightOrder : undefined}
           statusText={statusText}
         />
-        {/* Bottom-centered playback slider */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 8,
-            display: 'flex',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            style={{
-              background: 'rgba(0,0,0,0.35)',
-              color: 'white',
-              borderRadius: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              pointerEvents: 'auto',
-            }}
-          >
-            <button onClick={() => setIsPlaying((p) => !p)}>{isPlaying ? 'Pause' : 'Play'}</button>
-            <button onClick={() => { setIsPlaying(false); setFrameIndex(0); }}>Stop</button>
-            <label>
-              Playback
-              <select value={playbackRate} onChange={(e) => setPlaybackRate(Number(e.target.value))}>
-                <option value={0.5}>0.5x</option>
-                <option value={1}>1x</option>
-                <option value={2}>2x</option>
-                <option value={4}>4x</option>
-                <option value={16}>16x</option>
-                <option value={256}>256x</option>
-              </select>
-            </label>
-            <span style={{ minWidth: 160, textAlign: 'right' }}>{displayTimeLabel}</span>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0, timelineInfo.length - 1)}
-              step={1}
-              value={Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineInfo.length - 1))}
-              onChange={(e) => setFrameIndex(Number(e.target.value))}
-              style={{ width: 420 }}
-            />
-          </div>
+      </div>
+      {/* Bottom-centered controls */}
+      <div
+        style={{
+          display: 'grid',
+          gridColumn: '2 / -2',
+          pointerEvents: 'none',
+          gap: '8px',
+          height: 'auto',
+        }}
+      >
+        <div style={{ pointerEvents: 'auto' }}>
+          <PlaybackControls
+            timelineLength={timelineInfo.length}
+            displayTimeLabel={displayTimeLabel}
+            initialPlaybackRate={_playbackRate}
+            onFrameIndexChange={setFrameIndex}
+            onIsPlayingChange={setIsPlaying}
+            onPlaybackRateChange={setPlaybackRate}
+          />
+        </div>
+
+        <div style={{ pointerEvents: 'auto' }}>
+          <VectorFieldControls
+            speedMultiplier={speedMultiplier}
+            onSpeedMultiplierChange={setSpeedMultiplier}
+            numParticles={numParticles}
+            onNumParticlesChange={setNumParticles}
+            damping={damping}
+            onDampingChange={setDamping}
+            turbulenceStrength={turbulenceStrength}
+            onTurbulenceStrengthChange={setTurbulenceStrength}
+          />
         </div>
       </div>
     </div>
