@@ -1,9 +1,10 @@
-// VectorFieldRenderer.tsx
+
+// VectorField.tsx
 import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PointMaterial, Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { FieldSampler } from '../DataLoading/windData';
+import type { FieldSampler } from '../../../entities/WindData/model/types';
 
 export type WindVector = {
   id: string;
@@ -490,7 +491,7 @@ const ParticleField: React.FC<{
   );
 };
 
-export const VectorFieldRenderer: React.FC<Props> = ({
+export const VectorField: React.FC<Props> = ({
   vectors,
   speedMultiplier = 1,
   numParticles,

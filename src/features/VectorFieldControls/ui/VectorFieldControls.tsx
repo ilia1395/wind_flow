@@ -86,5 +86,3 @@ export const VectorFieldControls: React.FC<VectorFieldControlsProps> = ({
     </div>
   );
 };
-
-
