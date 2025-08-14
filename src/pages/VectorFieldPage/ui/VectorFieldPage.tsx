@@ -3,7 +3,7 @@ import { useWindData, type FieldSampler, type WindFrame } from '../../../entitie
 import { VectorField } from '../../../widgets/VectorField';
 import { PlaybackControls } from '../../../widgets/PlaybackControls';
 import { VectorFieldControls } from '../../../features/VectorFieldControls';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { createLayeredFieldSampler, createFieldSamplerForFrame } from '../../../shared/lib/fieldSampler';
 
 export function VectorFieldPage() {
@@ -23,6 +23,29 @@ export function VectorFieldPage() {
   const [damping, setDamping] = useState(0.9);
   const [time, setTime] = useState(0);
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
+
+  useEffect(() => {
+    if (!isPlaying) return;
+
+    let animationFrameId: number;
+    let lastTime = performance.now();
+
+    const animate = () => {
+      const now = performance.now();
+      const deltaTime = (now - lastTime) / 1000; // delta time in seconds
+      lastTime = now;
+      
+      setTime(prevTime => prevTime + deltaTime);
+      
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [isPlaying]);
 
   const layeredSampler = useMemo(() => {
     if (heightOrder.length && Object.keys(framesByHeight).length) {
