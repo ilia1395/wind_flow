@@ -1,5 +1,5 @@
 
-import { useWindData } from '../../../entities/WindData';
+import { useWindData, type FieldSampler, type WindFrame } from '../../../entities/WindData';
 import { VectorField } from '../../../widgets/VectorField';
 import { PlaybackControls } from '../../../widgets/PlaybackControls';
 import { VectorFieldControls } from '../../../features/VectorFieldControls';
@@ -33,12 +33,12 @@ export function VectorFieldPage() {
 
   const displayTimeLabel = useMemo(() => {
     // Prefer original string to avoid TZ shifts if present
-    const raw = (currentFrame as any)?.timeString as string | undefined;
+    const raw = (currentFrame as WindFrame)?.timeString as string | undefined;
     if (raw && raw.trim()) return raw;
     const sec = currentFrame?.time;
     if (typeof sec === 'number') {
       try {
-        return new Date(sec * 1000).toLocaleString();
+        return new Date(sec * 1000).toLocaleDateString();
       } catch {
         /* noop */
       }
@@ -95,7 +95,7 @@ export function VectorFieldPage() {
           bounds={bounds}
           speedMultiplier={speedMultiplier}
           numParticles={numParticles}
-          fieldSampler={layeredSampler as any}
+          fieldSampler={layeredSampler as FieldSampler}
           currentTime={time}
           damping={damping}
           turbulenceStrength={turbulenceStrength}
