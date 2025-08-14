@@ -38,7 +38,7 @@ export function VectorFieldPage() {
     const sec = currentFrame?.time;
     if (typeof sec === 'number') {
       try {
-        return new Date(sec * 1000).toLocaleDateString();
+        return new Date(sec * 1000).toLocaleString();
       } catch {
         /* noop */
       }
@@ -118,6 +118,7 @@ export function VectorFieldPage() {
             <PlaybackControls
               timelineLength={timelineInfo.length}
               displayTimeLabel={displayTimeLabel}
+              frameIndex={frameIndex}
               onFrameIndexChange={setFrameIndex}
               onIsPlayingChange={setIsPlaying}
             />

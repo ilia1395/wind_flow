@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { type WindFrame, type FramesByHeight } from './types';
-import { parseMastCsvByHeights } from '../api/windDataAPI';
+import { parseMastCsvByHeights, parseWindCsv } from '../api/windDataAPI';
 
 // @ts-ignore
 import mastCsvUrl from '../../../data/05092013-11112013_23s_res.csv?url';
@@ -63,9 +63,14 @@ export function useWindData() {
     return arr;
   }, []);
 
-  const activeFrames = frames.length ? frames : demoFrames;
-
-  const currentFrame = activeFrames[Math.min(frameIndex, activeFrames.length - 1)];
+  const currentFrame = useMemo(() => {
+    if (timelineInfo.repHeight !== undefined) {
+      const frameSet = framesByHeight[timelineInfo.repHeight] || [];
+      return frameSet[Math.min(Math.floor(frameIndex), Math.max(0, frameSet.length - 1))];
+    }
+    const activeFrames = frames.length ? frames : demoFrames;
+    return activeFrames[Math.min(Math.floor(frameIndex), Math.max(0, activeFrames.length - 1))];
+  }, [frameIndex, frames, demoFrames, framesByHeight, timelineInfo]);
 
   return {
     frames,

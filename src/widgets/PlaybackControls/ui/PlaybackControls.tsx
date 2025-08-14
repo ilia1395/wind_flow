@@ -74,6 +74,7 @@ type PlaybackControlsProps = {
   timelineLength: number;
   displayTimeLabel?: string;
   initialPlaybackRate?: number;
+  frameIndex: number;
   // Notify parent about state changes
   onFrameIndexChange?: (index: number) => void;
   onIsPlayingChange?: (isPlaying: boolean) => void;
@@ -84,13 +85,13 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
   timelineLength,
   displayTimeLabel,
   initialPlaybackRate = 1,
+  frameIndex,
   onFrameIndexChange,
   onIsPlayingChange,
   onPlaybackRateChange,
 }) => {
   const [isPlaying, setIsPlaying] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(initialPlaybackRate);
-  const [frameIndex, setFrameIndex] = useState(0);
 
   useEffect(() => {
     let raf = 0;
@@ -101,17 +102,13 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
       last = now;
       if (isPlaying && timelineLength > 0) {
         const framesPerSecond = 2 * playbackRate;
-        setFrameIndex((i) => (i + dt * framesPerSecond) % timelineLength);
+        onFrameIndexChange?.((frameIndex + dt * framesPerSecond) % timelineLength);
       }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, timelineLength, playbackRate]);
-
-  useEffect(() => {
-    onFrameIndexChange?.(Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineLength - 1)));
-  }, [frameIndex, timelineLength, onFrameIndexChange]);
+  }, [isPlaying, timelineLength, playbackRate, frameIndex, onFrameIndexChange]);
 
   useEffect(() => {
     onIsPlayingChange?.(isPlaying);
@@ -125,11 +122,11 @@ export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
     <PlaybackControlsView
       isPlaying={isPlaying}
       onTogglePlay={() => setIsPlaying((p) => !p)}
-      onStop={() => { setIsPlaying(false); setFrameIndex(0); }}
+      onStop={() => { setIsPlaying(false); onFrameIndexChange?.(0); }}
       playbackRate={playbackRate}
       onPlaybackRateChange={setPlaybackRate}
       frameIndex={frameIndex}
-      onFrameIndexChange={setFrameIndex}
+      onFrameIndexChange={onFrameIndexChange ?? (() => {})}
       timelineLength={timelineLength}
       displayTimeLabel={displayTimeLabel}
     />
