@@ -158,25 +158,6 @@ function App() {
     return () => cancelAnimationFrame(raf);
   }, [isPlaying]);
 
-  function onCsvSelected(file: File) {
-    file.text().then(async (txt) => {
-      // Try mast by heights; if fails, fallback to flat CSV format
-      try {
-        const { framesByHeight, heights } = parseMastCsvByHeights(txt);
-        setFramesByHeight(framesByHeight);
-        setHeightOrder(heights);
-        setFrames([]);
-        setFrameIndex(0);
-      } catch (_e) {
-        const parsed = await parseWindCsv(txt);
-        setFrames(parsed);
-        setFramesByHeight({});
-        setHeightOrder([]);
-        setFrameIndex(0);
-      }
-    });
-  }
-
   // Auto-load embedded CSV if present (optional)
   useEffect(() => {
     fetch(mastCsvUrl)
@@ -198,7 +179,7 @@ function App() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', height: '100vh', width: '100vw' }}>
       
-      <div style={{ position: 'relative', height: '600px', gridColumn: '1 / -1' }}>
+      <div style={{ position: 'relative', height: '70vh', gridColumn: '1 / -1' }}>
         <VectorFieldRenderer
           bounds={bounds}
           speedMultiplier={speedMultiplier}
