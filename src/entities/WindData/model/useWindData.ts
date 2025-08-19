@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useMemo } from 'react';
-import { type WindFrame, type FramesByHeight } from './types';
+import { type WindFrame, type FramesByHeight } from '../../../shared/lib/types';
 import { parseMastCsvByHeights, parseWindCsv } from '../api/windDataAPI';
 
 // @ts-ignore

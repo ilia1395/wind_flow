@@ -4,7 +4,7 @@ import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PointMaterial, Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { FieldSampler } from '../../../entities/WindData/model/types';
+import type { FieldSampler } from '../../../shared/lib/types';
 
 export type WindVector = {
   id: string;

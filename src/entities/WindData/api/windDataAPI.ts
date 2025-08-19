@@ -1,4 +1,4 @@
-import { type WindFrame, type FramesByHeight } from '../model/types';
+import { type WindFrame, type FramesByHeight } from '../../../shared/lib/types';
 
 // Robust timestamp parser for mast CSV (e.g. "07/08/2014 08:10")
 // Tries day-first dd/MM/yyyy, then month-first MM/dd/yyyy when unambiguous

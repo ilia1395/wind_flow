@@ -1,1 +1,1 @@
-export * from './ui/VectorFieldPage';
+export { VectorFieldPage } from './ui/VectorFieldPage';

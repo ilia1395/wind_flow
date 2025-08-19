@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { type WindFrame, type FieldSampler, type FramesByHeight } from '../../entities/WindData';
+import { type WindFrame, type FieldSampler, type FramesByHeight } from './types';
 
 function degToRad(deg: number) {
   return (deg * Math.PI) / 180;

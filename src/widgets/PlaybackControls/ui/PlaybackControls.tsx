@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 type PlaybackControlsViewProps = {
   isPlaying: boolean;

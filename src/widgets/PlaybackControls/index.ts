@@ -1,1 +1,1 @@
-export * from './ui/PlaybackControls';
+export { PlaybackControls } from './ui/PlaybackControls';
