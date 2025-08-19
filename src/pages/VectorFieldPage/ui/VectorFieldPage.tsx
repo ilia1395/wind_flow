@@ -1,10 +1,64 @@
 
-import { useWindData, type FieldSampler, type WindFrame } from '../../../entities/WindData';
-import { VectorField } from '../../../widgets/VectorField';
-import { PlaybackControls } from '../../../widgets/PlaybackControls';
-import { VectorFieldControls } from '../../../features/VectorFieldControls';
 import { useMemo, useState, useEffect } from 'react';
-import { createLayeredFieldSampler, createFieldSamplerForFrame } from '../../../shared/lib/fieldSampler';
+
+import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
+import { VectorField } from '@widgets/VectorField';
+import { PlaybackControls } from '@widgets/PlaybackControls';
+import { VectorFieldControls } from '@features/VectorFieldControls';
+import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/lib/fieldSampler';
+import { OrbitControls } from '@react-three/drei';
+
+import { HitTest } from '@shared/lib/hitTest/HitTest'
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import {
+  createXRStore,
+  DefaultXRController,
+  DefaultXRHand,
+  IfInSessionMode,
+  useXRInputSourceEvent,
+  useXRInputSourceStateContext,
+  XR,
+  XRDomOverlay,
+  XRHitTest,
+  XRSpace
+} from '@react-three/xr';
+
+import {onResults} from '@shared/lib/hitTest/hitTestUtils'
+
+const xr_store = createXRStore({
+  domOverlay: true,
+  hitTest: true,
+  anchors: true,
+  layers: false,
+  meshDetection: false,
+
+  hand: () => {
+    const state = useXRInputSourceStateContext()
+
+    return (
+      <>
+        <DefaultXRHand />
+        <XRSpace space={state.inputSource.targetRaySpace}>
+          <XRHitTest onResults={onResults.bind(null, state.inputSource.handedness)} />
+        </XRSpace>
+      </>
+    )
+  },
+
+  controller: () => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const state = useXRInputSourceStateContext()
+
+    return (
+      <>
+        <DefaultXRController />
+        <XRSpace space={state.inputSource.targetRaySpace}>
+          <XRHitTest onResults={onResults.bind(null, state.inputSource.handedness)} />
+        </XRSpace>
+      </>
+    )
+  },
+})
 
 export function VectorFieldPage() {
   const {
@@ -17,10 +71,6 @@ export function VectorFieldPage() {
   } = useWindData();
 
   const [isPlaying, setIsPlaying] = useState(true);
-  const [speedMultiplier, setSpeedMultiplier] = useState(1);
-  const [numParticles, setNumParticles] = useState(1000);
-  const [turbulenceStrength, setTurbulenceStrength] = useState(0.05);
-  const [damping, setDamping] = useState(0.9);
   const [time, setTime] = useState(0);
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
 
@@ -113,19 +163,72 @@ export function VectorFieldPage() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', height: '100vh', width: '100vw' }}>
-      <div style={{ position: 'relative', height: '70vh', gridColumn: '1 / -1' }}>
-        <VectorField
-          bounds={bounds}
-          speedMultiplier={speedMultiplier}
-          numParticles={numParticles}
-          fieldSampler={layeredSampler as FieldSampler}
-          currentTime={time}
-          damping={damping}
-          turbulenceStrength={turbulenceStrength}
-          heightSlices={heightOrder.length ? heightOrder : undefined}
-          statusText={statusText}
-        />
-
+      <div style={{ position: 'relative', height: '80vh', gridColumn: '1 / -1' }}>
+        <button
+        onClick={() => xr_store.enterAR()}
+        style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            padding: '10px 20px',
+            fontSize: '16px',
+            cursor: 'pointer',
+            borderRadius: '8px',
+            border: 'none',
+            backgroundColor: '#3c2741ff',
+            color: 'white',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+          }}
+      >
+        Enter AR
+      </button>
+        <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
+          <XR store={xr_store}>
+            <ambientLight intensity={0.6} />
+            <pointLight position={[10, 12, 10]} intensity={0.8} />
+            <OrbitControls enableDamping />
+            <IfInSessionMode allow={'immersive-ar'}>
+              <HitTest />
+              
+              <XRDomOverlay>
+                <button 
+                  onClick={() => xr_store.getState().session?.end()}
+                  style={{
+                    position: 'absolute',
+                    bottom: '20px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    zIndex: 1000,
+                    padding: '10px 20px',
+                    fontSize: '16px',
+                    cursor: 'pointer',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#3c2741ff',
+                    color: 'white',
+                    boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  Exit AR
+                </button>
+              </XRDomOverlay>
+            </IfInSessionMode>
+            
+            <IfInSessionMode deny={'immersive-ar'}>
+              <VectorField
+                bounds={bounds}
+                fieldSampler={layeredSampler as FieldSampler}
+                currentTime={time}
+                heightSlices={heightOrder.length ? heightOrder : undefined}
+                statusText={statusText}
+              />
+            </IfInSessionMode>          
+          </XR>
+        </Canvas>
+        
+        
         <div
           style={{
             display: 'flex',
@@ -147,18 +250,6 @@ export function VectorFieldPage() {
             />
           </div>
 
-          <div style={{ pointerEvents: 'auto' }}>
-            <VectorFieldControls
-              speedMultiplier={speedMultiplier}
-              onSpeedMultiplierChange={setSpeedMultiplier}
-              numParticles={numParticles}
-              onNumParticlesChange={setNumParticles}
-              damping={damping}
-              onDampingChange={setDamping}
-              turbulenceStrength={turbulenceStrength}
-              onTurbulenceStrengthChange={setTurbulenceStrength}
-            />
-          </div>
         </div>
       </div>
     </div>

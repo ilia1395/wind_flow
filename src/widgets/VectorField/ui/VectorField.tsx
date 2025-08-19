@@ -4,7 +4,7 @@ import React, { useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, PointMaterial, Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import type { FieldSampler } from '../../../shared/lib/types';
+import type { FieldSampler } from '@shared/lib/types';
 
 export type WindVector = {
   id: string;
@@ -494,7 +494,7 @@ const ParticleField: React.FC<{
 export const VectorField: React.FC<Props> = ({
   vectors,
   speedMultiplier = 1,
-  numParticles,
+  numParticles = 500,
   bounds = [5, 5, 5],
   fieldSampler,
   currentTime = 0,
@@ -516,11 +516,7 @@ export const VectorField: React.FC<Props> = ({
   const edgeLabelMargin = 0.6;
 
   return (
-    <Canvas camera={{ position: [0, 0, 128], fov: 5 }}>
-      <ambientLight intensity={0.6} />
-      <pointLight position={[10, 12, 10]} intensity={0.8} />
-      <OrbitControls enableDamping />
-
+    <>
       {/* bounds */}
       <mesh>
         <boxGeometry args={boxSize} />
@@ -594,6 +590,6 @@ export const VectorField: React.FC<Props> = ({
         turbulenceStrength={turbulenceStrength}
         isPlaying={isPlaying}
       />
-    </Canvas>
+    </>
   );
 };

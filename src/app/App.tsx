@@ -1,4 +1,4 @@
-import { VectorFieldPage } from '../pages/VectorFieldPage';
+import { VectorFieldPage } from '@pages/VectorFieldPage';
 
 function App() {
   return <VectorFieldPage />;
