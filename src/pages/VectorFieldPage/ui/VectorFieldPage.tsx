@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from 'react';
 import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
 import { VectorField } from '@widgets/VectorField';
 import { PlaybackControls } from '@widgets/PlaybackControls';
-import { VectorFieldControls } from '@features/VectorFieldControls';
 import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/lib/fieldSampler';
 import { OrbitControls } from '@react-three/drei';
 
@@ -22,8 +21,8 @@ import {
   XRHitTest,
   XRSpace
 } from '@react-three/xr';
-
-import {onResults} from '@shared/lib/hitTest/hitTestUtils'
+import {hitTestMatrices, onResults} from '@shared/lib/hitTest/hitTestUtils'
+import { Quaternion, Vector3 } from 'three';
 
 const xr_store = createXRStore({
   domOverlay: true,
@@ -74,6 +73,35 @@ export function VectorFieldPage() {
   const [time, setTime] = useState(0);
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
 
+  const [anchor, setAnchor] = useState<{ position: Vector3; quaternion: Quaternion }>();
+  const ARAnchoredVectorField: React.FC = () => {
+    useXRInputSourceEvent(
+      'all',
+      'select',
+      (e) => {
+        const matrix = hitTestMatrices[e.inputSource.handedness];
+        if (matrix) {
+          const position = new Vector3();
+          const quaternion = new Quaternion();
+          matrix.decompose(position, quaternion, new Vector3());
+          setAnchor({ position, quaternion });
+        };
+      },
+      []);
+
+    return (
+      <group position={anchor?.position} quaternion={anchor?.quaternion} scale={0.2}>
+        <VectorField
+          bounds={bounds}
+          fieldSampler={layeredSampler as FieldSampler}
+          currentTime={time}
+          heightSlices={heightOrder.length ? heightOrder : undefined}
+          statusText={statusText}
+        />
+      </group>
+    );
+  };
+  
   useEffect(() => {
     if (!isPlaying) return;
 
@@ -190,8 +218,8 @@ export function VectorFieldPage() {
             <pointLight position={[10, 12, 10]} intensity={0.8} />
             <OrbitControls enableDamping />
             <IfInSessionMode allow={'immersive-ar'}>
-              <HitTest />
-              
+              <HitTest />              
+              <ARAnchoredVectorField />
               <XRDomOverlay>
                 <button 
                   onClick={() => xr_store.getState().session?.end()}
