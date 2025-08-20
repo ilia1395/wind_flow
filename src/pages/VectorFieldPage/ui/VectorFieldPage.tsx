@@ -74,6 +74,7 @@ export function VectorFieldPage() {
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
 
   const [anchor, setAnchor] = useState<{ position: Vector3; quaternion: Quaternion }>();
+  const [placed, setPlaced] = useState<boolean>(false);
   const ARAnchoredVectorField: React.FC = () => {
     useXRInputSourceEvent(
       'all',
@@ -85,12 +86,14 @@ export function VectorFieldPage() {
           const quaternion = new Quaternion();
           matrix.decompose(position, quaternion, new Vector3());
           setAnchor({ position, quaternion });
+          setPlaced(true);
         };
       },
       []);
-
+    
+    if (!anchor) return
     return (
-      <group position={anchor?.position} quaternion={anchor?.quaternion} scale={0.2}>
+      <group position={anchor.position} quaternion={anchor.quaternion} scale={0.1}>
         <VectorField
           bounds={bounds}
           fieldSampler={layeredSampler as FieldSampler}

@@ -494,7 +494,7 @@ const ParticleField: React.FC<{
 export const VectorField: React.FC<Props> = ({
   vectors,
   speedMultiplier = 1,
-  numParticles = 5,
+  numParticles = 500,
   bounds = [5, 5, 5],
   fieldSampler,
   currentTime = 0,
