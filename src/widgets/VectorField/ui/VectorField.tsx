@@ -231,8 +231,6 @@ const ParticleField: React.FC<{
   turbulenceStrength: number;
   isPlaying: boolean;
 }> = ({ vectors, speedMultiplier, numParticles, bounds, fieldSampler, currentTime, damping, turbulenceStrength, isPlaying }) => {
-  const pointsRef = useRef<THREE.Points>(null);
-
   const { positions, colors, velocities, prepared, grid, cellSize } = useMemo(() => {
     const preparedVectors: PreparedVector[] = (vectors ?? []).map((v) => {
       const angle = v.direction; // radians around Y axis
@@ -273,52 +271,19 @@ const ParticleField: React.FC<{
   const halfZ = bounds[2];
 
   // Trails and speed-change tracking
-  const TRAIL_LENGTH = 24;
+  const pointsRef = useRef<THREE.Points>(null);
+  const trailDotsRef = useRef<THREE.Points>(null);
+  const trailHeadRef   = useRef(0);
+
+  const TRAIL_LENGTH = 48;
   const trailPositions = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
-  const trailColors = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
-  const trailHeadRef = useRef(0);
-  const prevSpeed = useMemo(() => new Float32Array(numParticles), [numParticles]);
-  const curSpeed = useMemo(() => new Float32Array(numParticles), [numParticles]);
-  const deltaSpeed = useMemo(() => new Float32Array(numParticles), [numParticles]);
-  const trailPointsRef = useRef<THREE.Points>(null);
-  const sizes = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
-  const gustRatios = useMemo(() => new Float32Array(numParticles).fill(0), [numParticles]);
-
-  const trailIndices = useMemo(() => {
-    const arr = new Uint16Array(numParticles * (TRAIL_LENGTH - 1) * 2);
-    let idx = 0;
-    for (let p = 0; p < numParticles; p++) {
-      for (let t = 0; t < TRAIL_LENGTH - 1; t++) {
-        const base = p * TRAIL_LENGTH + t;
-        arr[idx++] = base;
-        arr[idx++] = base + 1;
-      }
-    }
-    return arr;
-  }, [numParticles]);
-
-  const trailVertex = `
-    varying vec3 vColor;
-    void main() {
-      vColor = color;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `;
-
-  const trailFragment = `
-    varying vec3 vColor;
-    uniform float uOpacity;
-    void main() {
-      gl_FragColor = vec4(vColor, uOpacity);
-    }
-  `;
-
-  const trailUniforms = useMemo(
-    () => ({
-      uOpacity: { value: 0.9 },
-    }),
-    []
-  );
+  const trailColors    = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
+  const prevSpeed      = useMemo(() => new Float32Array(numParticles), [numParticles]);
+  const curSpeed       = useMemo(() => new Float32Array(numParticles), [numParticles]);
+  const deltaSpeed     = useMemo(() => new Float32Array(numParticles), [numParticles]);
+  const sizes          = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
+  const gustRatios     = useMemo(() => new Float32Array(numParticles).fill(0), [numParticles]);
+  const trailDotSizes  = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH).fill(0), [numParticles]);
 
   // Minimal custom shader to support per-particle size and circular points
   const particleVertex = `
@@ -356,10 +321,50 @@ const ParticleField: React.FC<{
     uOpacity: { value: 1.0 },
   }), []);
 
+  const trailPointVertex = `
+    attribute float aSize;
+    attribute vec3 color;
+    varying vec3 vColor;
+    uniform float uSize;
+    uniform float uViewportHeight;
+    uniform float uFov;
+    void main() {
+      vColor = color;
+      vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+      float projScale = uViewportHeight / (2.0 * tan(uFov * 0.5));
+      float scaleFactor = length(modelMatrix[0].xyz);
+      float sizePx = max(1.0, aSize * uSize * projScale / max(scaleFactor, -mvPosition.z));
+      gl_PointSize = sizePx;
+      gl_Position = projectionMatrix * mvPosition;
+    }
+  `;
+  const trailPointFragment = `
+    varying vec3 vColor;
+    uniform float uOpacity;
+    void main() {
+      vec2 c = gl_PointCoord - vec2(0.5);
+      float r = dot(c, c);
+      if (r > 0.25) discard;
+      gl_FragColor = vec4(vColor, uOpacity);
+    }
+  `;
+  const trailPointUniforms = useMemo(() => ({
+    uSize: { value: 0.01 },
+    uViewportHeight: { value: 400.0 },
+    uFov: { value: 45 * Math.PI / 180 },
+    uOpacity: { value: 1.0 },
+  }), []);
+
   useFrame((state, delta) => {
-    particleUniforms.uViewportHeight.value = state.size.height * (state.viewport.dpr || 1);
-    // @ts-expect-error assuming perspective camera
-    particleUniforms.uFov.value = (state.camera?.fov ?? 45) * Math.PI / 180.0;
+    const vh = state.size.height * (state.viewport.dpr || 1);
+    const fov = ((state.camera as any)?.fov ?? 45) * Math.PI / 180.0;
+    
+    particleUniforms.uViewportHeight.value = vh;
+    particleUniforms.uFov.value = fov;
+
+    trailPointUniforms.uViewportHeight.value = vh;
+    trailPointUniforms.uFov.value = fov;
+
     if (!isPlaying) {
       velocities.fill(0);
       return;
@@ -406,7 +411,7 @@ const ParticleField: React.FC<{
         const turbFactor = 0.5 + (s.turbulence ?? 0);
         // Scale jitter by turbulence intensity
         vel[i + 0] += n1 * 0.25 * jitter * turbFactor;
-        vel[i + 1] += n2 * 0.2 * jitter * turbFactor;
+        vel[i + 1] += n2 * 0.2  * jitter * turbFactor;
         vel[i + 2] += n3 * 0.25 * jitter * turbFactor;
       }
 
@@ -451,76 +456,89 @@ const ParticleField: React.FC<{
       sizes[particleIndex] = 0.2 + gustClamped * 0.6; // 0.2..0.8
     }
 
-    if (pointsRef.current) {
-      const geometry = pointsRef.current.geometry as THREE.BufferGeometry;
-      const positionAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
-      const colorAttr = geometry.getAttribute('color') as THREE.BufferAttribute;
-      positionAttr.needsUpdate = true;
-      colorAttr.needsUpdate = true;
-    }
-
     // Update trails: global decay then write current snapshot at head
-    const decayPerSecond = 0.92;
+    const decayPerSecond = 0.2;
     const decay = Math.pow(decayPerSecond, delta);
+
     for (let c = 0; c < trailColors.length; c += 1) {
       trailColors[c] *= decay;
     }
+
+    for (let s = 0; s < trailDotSizes.length; s += 1) {
+      trailDotSizes[s] *= decay;
+    }
+
     const head = trailHeadRef.current;
-    const headBase = head * numParticles * 3;
+    const headBaseFloat = head * numParticles * 3;
+
     for (let i = 0; i < numParticles; i += 1) {
       const pi = i * 3;
-      const hi = headBase + pi;
+      const hi = headBaseFloat + pi;
+
       trailPositions[hi + 0] = pos[pi + 0];
       trailPositions[hi + 1] = pos[pi + 1];
       trailPositions[hi + 2] = pos[pi + 2];
 
       const sNow = curSpeed[i];
       const gRatio = Math.max(0, Math.min(1, gustRatios[i]));
-      const intensity = 0.5 + 0.5 * Math.max(gRatio, Math.min(1, sNow / 20));
+      const intensity = 0.5 + 0.5 * Math.max(gRatio, Math.min(1, sNow / 40));
       trailColors[hi + 0] = intensity;
       trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
       trailColors[hi + 2] = 0.8 * (1 - intensity);
+
+      const vertexIndex = head * numParticles + i;
+      const baseSize = 0.6;         
+      const boost    = 1.4 * intensity;
+      trailDotSizes[vertexIndex] = baseSize + boost;
     }
     trailHeadRef.current = (head + 1) % TRAIL_LENGTH;
 
-    if (trailPointsRef.current) {
-      const geo = trailPointsRef.current.geometry as THREE.BufferGeometry;
-      const pAttr = geo.getAttribute('position') as THREE.BufferAttribute;
-      const cAttr = geo.getAttribute('color') as THREE.BufferAttribute;
-      pAttr.needsUpdate = true;
-      cAttr.needsUpdate = true;
+    if (pointsRef.current) {
+      const geometry = pointsRef.current.geometry as THREE.BufferGeometry;
+      (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('color')    as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('aSize')    as THREE.BufferAttribute).needsUpdate = true;
+    }
+
+    if (trailDotsRef.current) {
+      const geometry = trailDotsRef.current.geometry as THREE.BufferGeometry;
+      (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('color')    as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('aSize')    as THREE.BufferAttribute).needsUpdate = true;
     }
   });
 
   return (
     <>
       {/* Trails */}
-      <lineSegments ref={trailPointsRef} frustumCulled={false}>
-      <bufferGeometry>
+      <points ref={trailDotsRef} frustumCulled={false}>
+        <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[trailPositions, 3]} usage={THREE.DynamicDrawUsage} />
-          <bufferAttribute attach="attributes-color" args={[trailColors, 3]} usage={THREE.DynamicDrawUsage} />
-          <bufferAttribute attach="index" args={[trailIndices, 1]} />
-      </bufferGeometry>
-      <shaderMaterial
+          <bufferAttribute attach="attributes-color"    args={[trailColors,    3]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-aSize"    args={[trailDotSizes,  1]} usage={THREE.DynamicDrawUsage} />
+        </bufferGeometry>
+        <shaderMaterial
           transparent
           depthWrite={false}
-          vertexShader={trailVertex}
-          fragmentShader={trailFragment}
-          uniforms={trailUniforms}
+          depthTest={false}
+          toneMapped={false}
           blending={THREE.AdditiveBlending}
+          vertexShader={trailPointVertex}
+          fragmentShader={trailPointFragment}
+          uniforms={trailPointUniforms}
         />
-      </lineSegments>
+      </points>
 
       {/* Particles */}
       <points ref={pointsRef} frustumCulled={false}>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
-          <bufferAttribute attach="attributes-color" args={[colors, 3]} usage={THREE.DynamicDrawUsage} />
-          <bufferAttribute attach="attributes-aSize" args={[sizes, 1]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-color"    args={[colors,    3]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-aSize"    args={[sizes,     1]} usage={THREE.DynamicDrawUsage} />
         </bufferGeometry>
         <shaderMaterial
           transparent
-        depthWrite={false}
+          depthWrite={false}
           vertexShader={particleVertex}
           fragmentShader={particleFragment}
           uniforms={particleUniforms}
