@@ -283,6 +283,42 @@ const ParticleField: React.FC<{
   const sizes = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
   const gustRatios = useMemo(() => new Float32Array(numParticles).fill(0), [numParticles]);
 
+  const trailIndices = useMemo(() => {
+    const arr = new Uint16Array(numParticles * (TRAIL_LENGTH - 1) * 2);
+    let idx = 0;
+    for (let p = 0; p < numParticles; p++) {
+      for (let t = 0; t < TRAIL_LENGTH - 1; t++) {
+        const base = p * TRAIL_LENGTH + t;
+        arr[idx++] = base;
+        arr[idx++] = base + 1;
+      }
+    }
+    return arr;
+  }, [numParticles]);
+
+  const trailVertex = `
+    varying vec3 vColor;
+    void main() {
+      vColor = color;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `;
+
+  const trailFragment = `
+    varying vec3 vColor;
+    uniform float uOpacity;
+    void main() {
+      gl_FragColor = vec4(vColor, uOpacity);
+    }
+  `;
+
+  const trailUniforms = useMemo(
+    () => ({
+      uOpacity: { value: 0.9 },
+    }),
+    []
+  );
+
   // Minimal custom shader to support per-particle size and circular points
   const particleVertex = `
     attribute float aSize;
@@ -295,7 +331,8 @@ const ParticleField: React.FC<{
       vColor = color;
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       float projScale = uViewportHeight / (2.0 * tan(uFov * 0.5));
-      float sizePx = max(1.0, aSize * uSize * projScale / max(1.0, -mvPosition.z));
+      float scaleFactor = length(modelMatrix[0].xyz);
+      float sizePx = max(1.0, aSize * uSize * projScale / max(scaleFactor, -mvPosition.z));
       gl_PointSize = sizePx;
       gl_Position = projectionMatrix * mvPosition;
     }
@@ -312,7 +349,7 @@ const ParticleField: React.FC<{
     }
   `;
   const particleUniforms = useMemo(() => ({
-    uSize: { value: 0.25 },
+    uSize: { value: 0.15 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -457,20 +494,21 @@ const ParticleField: React.FC<{
   return (
     <>
       {/* Trails */}
-      <points ref={trailPointsRef} frustumCulled={false}>
+      <lineSegments ref={trailPointsRef} frustumCulled={false}>
       <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[trailPositions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color" args={[trailColors, 3]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="index" args={[trailIndices, 1]} />
       </bufferGeometry>
-      <PointMaterial
-        transparent
-        vertexColors
-          size={0.02}
-          sizeAttenuation
+      <shaderMaterial
+          transparent
           depthWrite={false}
+          vertexShader={trailVertex}
+          fragmentShader={trailFragment}
+          uniforms={trailUniforms as any}
           blending={THREE.AdditiveBlending}
         />
-      </points>
+      </lineSegments>
 
       {/* Particles */}
       <points ref={pointsRef} frustumCulled={false}>

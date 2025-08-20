@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { Mesh } from 'three'
 import { BufferGeometryUtils } from 'three/examples/jsm/Addons.js'
 import { hitTestMatrices } from '@shared/lib/hitTest/hitTestUtils'
+import { useState } from 'react'
 
 const ReticleMesh = forwardRef<Mesh, ThreeElements['mesh']>((props, ref) => {
   const geometry_merged = BufferGeometryUtils.mergeGeometries([
@@ -20,6 +21,7 @@ const ReticleMesh = forwardRef<Mesh, ThreeElements['mesh']>((props, ref) => {
 
 export const Reticle = memo(({ handedness }: { handedness: XRHandedness }) => {
   const ref = useRef<Mesh>(null)
+  const [lastMatrix, setLastMatrix] = useState<THREE.Matrix4 | undefined>(undefined)
 
   useFrame(() => {
     if (ref.current == null) {
@@ -27,11 +29,15 @@ export const Reticle = memo(({ handedness }: { handedness: XRHandedness }) => {
     }
     const matrix = hitTestMatrices[handedness]
     if (matrix != null) {
-      ref.current.visible = true
-      ref.current.position.setFromMatrixPosition(matrix)
-      ref.current.quaternion.setFromRotationMatrix(matrix)
+      if (lastMatrix === undefined || !lastMatrix.equals(matrix)) {
+        ref.current.visible = true
+        ref.current.position.setFromMatrixPosition(matrix)
+        ref.current.quaternion.setFromRotationMatrix(matrix)
+        setLastMatrix(matrix.clone())
+      }
     } else {
       ref.current.visible = false
+      setLastMatrix(undefined)
     }
   })
 

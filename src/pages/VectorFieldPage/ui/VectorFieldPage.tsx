@@ -8,7 +8,7 @@ import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/l
 import { OrbitControls } from '@react-three/drei';
 
 import { HitTest } from '@shared/lib/hitTest/HitTest'
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import {
   createXRStore,
   DefaultXRController,
@@ -59,6 +59,38 @@ const xr_store = createXRStore({
   },
 })
 
+const ARAnchoredVectorField = (({ placed, setPlaced, setAnchor, anchor, bounds, layeredSampler, time, heightOrder, statusText }: any) => {
+  useXRInputSourceEvent(
+    'all',
+    'select',
+    (e) => {
+      if (placed) return;
+      const matrix = hitTestMatrices[e.inputSource.handedness];
+      if (matrix) {
+        const position = new Vector3();
+        const quaternion = new Quaternion();
+        matrix.decompose(position, quaternion, new Vector3());
+        setAnchor({ position, quaternion });
+        setPlaced(true);
+      };
+    },
+    [placed]
+  );
+  
+  if (!anchor) return;
+  return (
+    <group position={anchor.position} quaternion={anchor.quaternion} scale={0.1}>
+      <VectorField
+        bounds={bounds}
+        fieldSampler={layeredSampler as FieldSampler}
+        currentTime={time}
+        heightSlices={heightOrder.length ? heightOrder : undefined}
+        statusText={statusText}
+      />
+    </group>
+  );
+});
+
 export function VectorFieldPage() {
   const {
     framesByHeight,
@@ -72,38 +104,8 @@ export function VectorFieldPage() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [time, setTime] = useState(0);
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
-
   const [anchor, setAnchor] = useState<{ position: Vector3; quaternion: Quaternion }>();
   const [placed, setPlaced] = useState<boolean>(false);
-  const ARAnchoredVectorField: React.FC = () => {
-    useXRInputSourceEvent(
-      'all',
-      'select',
-      (e) => {
-        const matrix = hitTestMatrices[e.inputSource.handedness];
-        if (matrix) {
-          const position = new Vector3();
-          const quaternion = new Quaternion();
-          matrix.decompose(position, quaternion, new Vector3());
-          setAnchor({ position, quaternion });
-          setPlaced(true);
-        };
-      },
-      []);
-    
-    if (!anchor) return
-    return (
-      <group position={anchor.position} quaternion={anchor.quaternion} scale={0.1}>
-        <VectorField
-          bounds={bounds}
-          fieldSampler={layeredSampler as FieldSampler}
-          currentTime={time}
-          heightSlices={heightOrder.length ? heightOrder : undefined}
-          statusText={statusText}
-        />
-      </group>
-    );
-  };
   
   useEffect(() => {
     if (!isPlaying) return;
@@ -217,12 +219,21 @@ export function VectorFieldPage() {
       </button>
         <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
           <XR store={xr_store}>
-            <ambientLight intensity={0.6} />
-            <pointLight position={[10, 12, 10]} intensity={0.8} />
-            <OrbitControls enableDamping />
+            {/* <ambientLight intensity={0.6} /> */}
+            {/* <pointLight position={[10, 12, 10]} intensity={0.8} /> */}
             <IfInSessionMode allow={'immersive-ar'}>
-              <HitTest />              
-              <ARAnchoredVectorField />
+              <HitTest placed={placed} />
+              <ARAnchoredVectorField 
+                placed={placed} 
+                setPlaced={setPlaced} 
+                anchor={anchor} 
+                setAnchor={setAnchor}
+                bounds={bounds}
+                layeredSampler={layeredSampler}
+                time={time}
+                heightOrder={heightOrder}
+                statusText={statusText}
+              />
               <XRDomOverlay>
                 <button 
                   onClick={() => xr_store.getState().session?.end()}
@@ -248,6 +259,7 @@ export function VectorFieldPage() {
             </IfInSessionMode>
             
             <IfInSessionMode deny={'immersive-ar'}>
+              <OrbitControls enableDamping />
               <VectorField
                 bounds={bounds}
                 fieldSampler={layeredSampler as FieldSampler}
