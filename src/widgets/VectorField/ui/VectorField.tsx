@@ -494,7 +494,7 @@ const ParticleField: React.FC<{
   return (
     <>
       {/* Trails */}
-      <lineSegments ref={trailPointsRef} frustumCulled={false}>
+      <points ref={trailPointsRef} frustumCulled={false}>
       <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[trailPositions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color" args={[trailColors, 3]} usage={THREE.DynamicDrawUsage} />
@@ -508,7 +508,7 @@ const ParticleField: React.FC<{
           uniforms={trailUniforms as any}
           blending={THREE.AdditiveBlending}
         />
-      </lineSegments>
+      </points>
 
       {/* Particles */}
       <points ref={pointsRef} frustumCulled={false}>
