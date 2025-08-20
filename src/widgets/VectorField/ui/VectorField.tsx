@@ -1,9 +1,10 @@
 
 // VectorField.tsx
 import React, { useMemo, useRef } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, PointMaterial, Billboard, Text } from '@react-three/drei';
 import * as THREE from 'three';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Billboard, Text } from '@react-three/drei';
+
 import type { FieldSampler } from '@shared/lib/types';
 
 export type WindVector = {
@@ -494,7 +495,7 @@ const ParticleField: React.FC<{
   return (
     <>
       {/* Trails */}
-      <points ref={trailPointsRef} frustumCulled={false}>
+      <lineSegments ref={trailPointsRef} frustumCulled={false}>
       <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[trailPositions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color" args={[trailColors, 3]} usage={THREE.DynamicDrawUsage} />
@@ -505,10 +506,10 @@ const ParticleField: React.FC<{
           depthWrite={false}
           vertexShader={trailVertex}
           fragmentShader={trailFragment}
-          uniforms={trailUniforms as any}
+          uniforms={trailUniforms}
           blending={THREE.AdditiveBlending}
         />
-      </points>
+      </lineSegments>
 
       {/* Particles */}
       <points ref={pointsRef} frustumCulled={false}>
@@ -522,7 +523,7 @@ const ParticleField: React.FC<{
         depthWrite={false}
           vertexShader={particleVertex}
           fragmentShader={particleFragment}
-          uniforms={particleUniforms as any}
+          uniforms={particleUniforms}
       />
     </points>
     </>
