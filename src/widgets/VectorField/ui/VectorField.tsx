@@ -275,7 +275,7 @@ const ParticleField: React.FC<{
   const trailDotsRef = useRef<THREE.Points>(null);
   const trailHeadRef   = useRef(0);
 
-  const TRAIL_LENGTH = 48;
+  const TRAIL_LENGTH = 12;
   const trailPositions = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const trailColors    = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const prevSpeed      = useMemo(() => new Float32Array(numParticles), [numParticles]);
@@ -349,7 +349,7 @@ const ParticleField: React.FC<{
     }
   `;
   const trailPointUniforms = useMemo(() => ({
-    uSize: { value: 0.01 },
+    uSize: { value: 0.075 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -453,11 +453,11 @@ const ParticleField: React.FC<{
       col[i + 2] = b;
 
       // per-particle size from gust ratio (smaller range)
-      sizes[particleIndex] = 0.2 + gustClamped * 0.6; // 0.2..0.8
+      sizes[particleIndex] = 0.15 + gustClamped * 0.6; // 0.2..0.8
     }
 
     // Update trails: global decay then write current snapshot at head
-    const decayPerSecond = 0.2;
+    const decayPerSecond = 0.1;
     const decay = Math.pow(decayPerSecond, delta);
 
     for (let c = 0; c < trailColors.length; c += 1) {
@@ -481,14 +481,14 @@ const ParticleField: React.FC<{
 
       const sNow = curSpeed[i];
       const gRatio = Math.max(0, Math.min(1, gustRatios[i]));
-      const intensity = 0.5 + 0.5 * Math.max(gRatio, Math.min(1, sNow / 40));
+      const intensity = 0.5 * (sNow / 10) + 0.5 * Math.max(gRatio, Math.min(1, sNow / 40));
       trailColors[hi + 0] = intensity;
       trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
       trailColors[hi + 2] = 0.8 * (1 - intensity);
 
       const vertexIndex = head * numParticles + i;
-      const baseSize = 0.6;         
-      const boost    = 1.4 * intensity;
+      const baseSize = 0.075;         
+      const boost    = 0.8 * intensity;
       trailDotSizes[vertexIndex] = baseSize + boost;
     }
     trailHeadRef.current = (head + 1) % TRAIL_LENGTH;
