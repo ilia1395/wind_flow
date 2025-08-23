@@ -3,26 +3,26 @@ import { useMemo, useState, useEffect } from 'react';
 
 import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
 import { VectorField } from '@widgets/VectorField';
+import { ObjectPlacement } from '@features/ObjectPlacement';
 import { PlaybackControls } from '@widgets/PlaybackControls';
 import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/lib/fieldSampler';
 import { OrbitControls } from '@react-three/drei';
 
-import { HitTest } from '@shared/lib/hitTest/HitTest'
+
 import { Canvas } from '@react-three/fiber';
 import {
   createXRStore,
   DefaultXRController,
   DefaultXRHand,
   IfInSessionMode,
-  useXRInputSourceEvent,
   useXRInputSourceStateContext,
   XR,
   XRDomOverlay,
   XRHitTest,
   XRSpace
 } from '@react-three/xr';
-import {hitTestMatrices, onResults} from '@shared/lib/hitTest/hitTestUtils'
-import { Quaternion, Vector3 } from 'three';
+import { onResults} from '@shared/lib/hitTest/hitTestUtils'
+
 
 const xr_store = createXRStore({
   domOverlay: true,
@@ -32,6 +32,7 @@ const xr_store = createXRStore({
   meshDetection: false,
 
   hand: () => {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
     const state = useXRInputSourceStateContext()
 
     return (
@@ -59,38 +60,6 @@ const xr_store = createXRStore({
   },
 })
 
-const ARAnchoredVectorField = (({ placed, setPlaced, setAnchor, anchor, bounds, layeredSampler, time, heightOrder, statusText }: any) => {
-  useXRInputSourceEvent(
-    'all',
-    'select',
-    (e) => {
-      if (placed) return;
-      const matrix = hitTestMatrices[e.inputSource.handedness];
-      if (matrix) {
-        const position = new Vector3();
-        const quaternion = new Quaternion();
-        matrix.decompose(position, quaternion, new Vector3());
-        setAnchor({ position, quaternion });
-        setPlaced(true);
-      };
-    },
-    [placed]
-  );
-  
-  if (!anchor) return;
-  return (
-    <group position={anchor.position} quaternion={anchor.quaternion} scale={0.1}>
-      <VectorField
-        bounds={bounds}
-        fieldSampler={layeredSampler as FieldSampler}
-        currentTime={time}
-        heightSlices={heightOrder.length ? heightOrder : undefined}
-        statusText={statusText}
-      />
-    </group>
-  );
-});
-
 export function VectorFieldPage() {
   const {
     framesByHeight,
@@ -104,8 +73,6 @@ export function VectorFieldPage() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [time, setTime] = useState(0);
   const [bounds] = useState<[number, number, number]>([6, 4, 6]);
-  const [anchor, setAnchor] = useState<{ position: Vector3; quaternion: Quaternion }>();
-  const [placed, setPlaced] = useState<boolean>(false);
   
   useEffect(() => {
     if (!isPlaying) return;
@@ -165,7 +132,7 @@ export function VectorFieldPage() {
         const f = arr[Math.min(idx, arr.length - 1)];
         if (!f) continue;
         const hs = f.horizSpeedMean ?? 0;
-        const max = (f as any).horizSpeedMax ?? hs;
+        const max = (f as WindFrame).horizSpeedMax ?? hs;
         const gr = hs > 0 ? Math.max(0, (max - hs) / hs) : 0;
         meanHS += hs;
         meanGustRatio += gr;
@@ -175,7 +142,7 @@ export function VectorFieldPage() {
       const f = currentFrame;
       if (f) {
         const hs = f.horizSpeedMean ?? 0;
-        const max = (f as any).horizSpeedMax ?? hs;
+        const max = (f as WindFrame).horizSpeedMax ?? hs;
         const gr = hs > 0 ? Math.max(0, (max - hs) / hs) : 0;
         meanHS += hs;
         meanGustRatio += gr;
@@ -219,21 +186,16 @@ export function VectorFieldPage() {
       </button>
         <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
           <XR store={xr_store}>
-            {/* <ambientLight intensity={0.6} /> */}
-            {/* <pointLight position={[10, 12, 10]} intensity={0.8} /> */}
             <IfInSessionMode allow={'immersive-ar'}>
-              <HitTest placed={placed} />
-              <ARAnchoredVectorField 
-                placed={placed} 
-                setPlaced={setPlaced} 
-                anchor={anchor} 
-                setAnchor={setAnchor}
-                bounds={bounds}
-                layeredSampler={layeredSampler}
-                time={time}
-                heightOrder={heightOrder}
-                statusText={statusText}
-              />
+              <ObjectPlacement scale={0.1}>
+                <VectorField
+                  bounds={bounds}
+                  fieldSampler={layeredSampler as FieldSampler}
+                  currentTime={time}
+                  heightSlices={heightOrder.length ? heightOrder : undefined}
+                  statusText={statusText}
+                />
+              </ObjectPlacement>
               <XRDomOverlay>
                 <button 
                   onClick={() => xr_store.getState().session?.end()}
@@ -260,13 +222,15 @@ export function VectorFieldPage() {
             
             <IfInSessionMode deny={'immersive-ar'}>
               <OrbitControls enableDamping />
-              <VectorField
-                bounds={bounds}
-                fieldSampler={layeredSampler as FieldSampler}
-                currentTime={time}
-                heightSlices={heightOrder.length ? heightOrder : undefined}
-                statusText={statusText}
-              />
+              <ObjectPlacement>
+                <VectorField
+                  bounds={bounds}
+                  fieldSampler={layeredSampler as FieldSampler}
+                  currentTime={time}
+                  heightSlices={heightOrder.length ? heightOrder : undefined}
+                  statusText={statusText}
+                />
+              </ObjectPlacement>
             </IfInSessionMode>          
           </XR>
         </Canvas>

@@ -6,40 +6,21 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { Billboard, Text } from '@react-three/drei';
 
 import type { FieldSampler } from '@shared/lib/types';
-
-export type WindVector = {
-  id: string;
-  position: [number, number, number];
-  speed: number;
-  direction: number; // assumed radians around Y (XZ plane)
-  timestamp: number;
-};
+import type { WindVector } from '@shared/lib/types';
+import type { PreparedVector } from '@shared/lib/types';
 
 type Props = {
   vectors?: WindVector[];
-  speedMultiplier?: number;
   numParticles?: number;
   bounds?: [number, number, number]; // half-extents (x,y,z)
   fieldSampler?: FieldSampler; // optional procedural sampler
   currentTime?: number; // seconds
-  damping?: number; // 0..1 per second
-  turbulenceStrength?: number; // 0..1 additional jitter
   isPlaying?: boolean; // control simulation integration
   heightSlices?: number[]; // meters
   statusText?: string; // overlay text
 };
 
-type PreparedVector = {
-  px: number;
-  py: number;
-  pz: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  speed: number;
-};
-
-function buildSpatialGrid(vectors: PreparedVector[], cellSize: number) {
+function buildSpatialGrid(vectors: PreparedVector[], cellSize: number) : Map<string, number[]>  {
   const grid = new Map<string, number[]>();
   for (let i = 0; i < vectors.length; i += 1) {
     const v = vectors[i];
@@ -222,15 +203,12 @@ const HeightLabels: React.FC<{
 
 const ParticleField: React.FC<{
   vectors?: WindVector[];
-  speedMultiplier: number;
   numParticles: number;
   bounds: [number, number, number];
   fieldSampler?: FieldSampler;
   currentTime: number;
-  damping: number;
-  turbulenceStrength: number;
   isPlaying: boolean;
-}> = ({ vectors, speedMultiplier, numParticles, bounds, fieldSampler, currentTime, damping, turbulenceStrength, isPlaying }) => {
+}> = ({ vectors, numParticles, bounds, fieldSampler, currentTime, isPlaying }) => {
   const { positions, colors, velocities, prepared, grid, cellSize } = useMemo(() => {
     const preparedVectors: PreparedVector[] = (vectors ?? []).map((v) => {
       const angle = v.direction; // radians around Y axis
@@ -275,14 +253,13 @@ const ParticleField: React.FC<{
   const trailDotsRef = useRef<THREE.Points>(null);
   const trailHeadRef   = useRef(0);
 
-  const TRAIL_LENGTH = 12;
+  const TRAIL_LENGTH = 24;
   const trailPositions = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const trailColors    = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const prevSpeed      = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const curSpeed       = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const deltaSpeed     = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const sizes          = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
-  const gustRatios     = useMemo(() => new Float32Array(numParticles).fill(0), [numParticles]);
   const trailDotSizes  = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH).fill(0), [numParticles]);
 
   // Minimal custom shader to support per-particle size and circular points
@@ -315,7 +292,7 @@ const ParticleField: React.FC<{
     }
   `;
   const particleUniforms = useMemo(() => ({
-    uSize: { value: 0.15 },
+    uSize: { value: 0.025 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -349,7 +326,7 @@ const ParticleField: React.FC<{
     }
   `;
   const trailPointUniforms = useMemo(() => ({
-    uSize: { value: 0.075 },
+    uSize: { value: 0.05 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -357,7 +334,7 @@ const ParticleField: React.FC<{
 
   useFrame((state, delta) => {
     const vh = state.size.height * (state.viewport.dpr || 1);
-    const fov = ((state.camera as any)?.fov ?? 45) * Math.PI / 180.0;
+    const fov = ((state.camera as THREE.PerspectiveCamera)?.fov ?? 45) * Math.PI / 180.0;
     
     particleUniforms.uViewportHeight.value = vh;
     particleUniforms.uFov.value = fov;
@@ -372,12 +349,9 @@ const ParticleField: React.FC<{
     const pos = positions;
     const col = colors;
     const vel = velocities;
-    const velocityScale = 1.0 * speedMultiplier; // tune flow speed (acts as acceleration scale)
     const radius = 2.5;
     const maxNeighbors = 12;
-    const accelScale = delta * velocityScale;
-    const damp = Math.max(0, Math.min(1, damping));
-    const jitter = Math.max(0, Math.min(1, turbulenceStrength));
+    const accelScale = delta;
 
     for (let i = 0; i < pos.length; i += 3) {
       let x = pos[i + 0];
@@ -393,33 +367,13 @@ const ParticleField: React.FC<{
       const ds = s.speed - prevSpeed[particleIndex];
       deltaSpeed[particleIndex] = ds;
       prevSpeed[particleIndex] = s.speed;
-      const gRatio = (s as any).gustRatio ?? 0;
-      gustRatios[particleIndex] = gRatio;
 
-      // simple forces: accelerate towards field direction, then dampen velocity
-      // base advection strength from horiz speed mean (s.speed already includes vy)
+      // simple forces: accelerate towards field direction
+      // base advection strength from prev speed
       const advectionScale = 0.5 + Math.min(3, s.speed);
       vel[i + 0] += s.vx * accelScale * advectionScale;
       vel[i + 1] += s.vy * accelScale * advectionScale;
       vel[i + 2] += s.vz * accelScale * advectionScale;
-
-      // turbulence jitter
-      if (jitter > 0) {
-        const n1 = Math.sin((x + currentTime * 0.7 + i) * 0.37);
-        const n2 = Math.sin((y + currentTime * 0.5 + i * 0.5) * 0.53);
-        const n3 = Math.sin((z + currentTime * 0.9 + i * 0.23) * 0.41);
-        const turbFactor = 0.5 + (s.turbulence ?? 0);
-        // Scale jitter by turbulence intensity
-        vel[i + 0] += n1 * 0.25 * jitter * turbFactor;
-        vel[i + 1] += n2 * 0.2  * jitter * turbFactor;
-        vel[i + 2] += n3 * 0.25 * jitter * turbFactor;
-      }
-
-      // damping (per-second)
-      const dampFactor = Math.exp(-damp * delta);
-      vel[i + 0] *= dampFactor;
-      vel[i + 1] *= dampFactor;
-      vel[i + 2] *= dampFactor;
 
       // integrate positions
       x += vel[i + 0] * delta;
@@ -441,31 +395,22 @@ const ParticleField: React.FC<{
       pos[i + 1] = y;
       pos[i + 2] = z;
 
-      // map gusts to particle size and color: stronger gusts -> larger and warmer color
-      const gustClamped = Math.max(0, Math.min(1, gRatio));
-      // base color from speed; warm with gust
+      // base color from speed
       const tSpeed = Math.max(0, Math.min(1, s.speed / 20));
-      const r = 0.4 + 0.6 * Math.max(tSpeed, gustClamped);
-      const g = 0.9 - 0.7 * Math.max(tSpeed * 0.6, 0);
-      const b = 1 - 0.8 * tSpeed * (1 - gustClamped * 0.5);
+      const r = 0.4 + 0.6 * tSpeed;
+      const g = 0.9 - 0.7 * tSpeed;
+      const b = 1 - 0.8 * tSpeed;
       col[i + 0] = r;
       col[i + 1] = g;
       col[i + 2] = b;
-
-      // per-particle size from gust ratio (smaller range)
-      sizes[particleIndex] = 0.15 + gustClamped * 0.6; // 0.2..0.8
     }
 
     // Update trails: global decay then write current snapshot at head
     const decayPerSecond = 0.1;
-    const decay = Math.pow(decayPerSecond, delta);
+    const decay = Math.pow(decayPerSecond, delta * 1);
 
     for (let c = 0; c < trailColors.length; c += 1) {
       trailColors[c] *= decay;
-    }
-
-    for (let s = 0; s < trailDotSizes.length; s += 1) {
-      trailDotSizes[s] *= decay;
     }
 
     const head = trailHeadRef.current;
@@ -480,8 +425,7 @@ const ParticleField: React.FC<{
       trailPositions[hi + 2] = pos[pi + 2];
 
       const sNow = curSpeed[i];
-      const gRatio = Math.max(0, Math.min(1, gustRatios[i]));
-      const intensity = 0.5 * (sNow / 10) + 0.5 * Math.max(gRatio, Math.min(1, sNow / 40));
+      const intensity = 0.5 * Math.max(0.1, Math.min(1, sNow / 20)) + 0.5 * Math.max(0.1, Math.min(1, sNow / 20));
       trailColors[hi + 0] = intensity;
       trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
       trailColors[hi + 2] = 0.8 * (1 - intensity);
@@ -550,13 +494,10 @@ const ParticleField: React.FC<{
 
 export const VectorField: React.FC<Props> = ({
   vectors,
-  speedMultiplier = 1,
-  numParticles = 500,
+  numParticles = 2000,
   bounds = [5, 5, 5],
   fieldSampler,
   currentTime = 0,
-  damping = 0.8,
-  turbulenceStrength = 0.2,
   isPlaying = true,
   heightSlices,
   statusText,
@@ -638,13 +579,10 @@ export const VectorField: React.FC<Props> = ({
 
       <ParticleField
         vectors={vectors}
-        speedMultiplier={speedMultiplier}
         numParticles={particleCount}
         bounds={bounds}
         fieldSampler={fieldSampler}
         currentTime={currentTime}
-        damping={damping}
-        turbulenceStrength={turbulenceStrength}
         isPlaying={isPlaying}
       />
     </>

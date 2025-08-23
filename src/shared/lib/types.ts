@@ -25,6 +25,26 @@ export type WindFrame = {
   turbulenceIntensity?: number;
 };
 
+
+export type WindVector = {
+  id: string;
+  position: [number, number, number];
+  speed: number;
+  direction: number; // assumed radians around Y (XZ plane)
+  timestamp: number;
+};
+
+// spatial grid
+export type PreparedVector = {
+  px: number;
+  py: number;
+  pz: number;
+  vx: number;
+  vy: number;
+  vz: number;
+  speed: number;
+};
+
 // particle system types
 type FieldSample = {
   vx: number;
