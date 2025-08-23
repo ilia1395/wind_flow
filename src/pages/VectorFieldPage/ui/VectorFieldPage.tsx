@@ -2,63 +2,20 @@
 import { useMemo, useState, useEffect } from 'react';
 
 import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
+import { OrbitControls } from '@react-three/drei';
+import { Root, Container, Text } from '@react-three/uikit';
+import { Canvas } from '@react-three/fiber';
+import {
+  IfInSessionMode,
+  XR,
+  XRDomOverlay,
+} from '@react-three/xr';
+
+import { xr_store } from '@shared/lib/XRStoreInit';
 import { VectorField } from '@widgets/VectorField';
 import { ObjectPlacement } from '@features/ObjectPlacement';
 import { PlaybackControls } from '@widgets/PlaybackControls';
 import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/lib/fieldSampler';
-import { OrbitControls } from '@react-three/drei';
-
-
-import { Canvas } from '@react-three/fiber';
-import {
-  createXRStore,
-  DefaultXRController,
-  DefaultXRHand,
-  IfInSessionMode,
-  useXRInputSourceStateContext,
-  XR,
-  XRDomOverlay,
-  XRHitTest,
-  XRSpace
-} from '@react-three/xr';
-import { onResults} from '@shared/lib/hitTest/hitTestUtils'
-
-
-const xr_store = createXRStore({
-  domOverlay: true,
-  hitTest: true,
-  anchors: true,
-  layers: false,
-  meshDetection: false,
-
-  hand: () => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const state = useXRInputSourceStateContext()
-
-    return (
-      <>
-        <DefaultXRHand />
-        <XRSpace space={state.inputSource.targetRaySpace}>
-          <XRHitTest onResults={onResults.bind(null, state.inputSource.handedness)} />
-        </XRSpace>
-      </>
-    )
-  },
-
-  controller: () => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const state = useXRInputSourceStateContext()
-
-    return (
-      <>
-        <DefaultXRController />
-        <XRSpace space={state.inputSource.targetRaySpace}>
-          <XRHitTest onResults={onResults.bind(null, state.inputSource.handedness)} />
-        </XRSpace>
-      </>
-    )
-  },
-})
 
 export function VectorFieldPage() {
   const {
@@ -184,10 +141,18 @@ export function VectorFieldPage() {
       >
         Enter AR
       </button>
-        <Canvas camera={{ position: [0, 0, 128], fov: 5 }}>
+        <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
           <XR store={xr_store}>
+            <OrbitControls />
+            {/* Example simple uikit layout */}
+            <Root backgroundColor="red" sizeX={2} sizeY={1} flexDirection="row">
+              <Container flexGrow={1} margin={16} backgroundColor="green">
+                <Text>Hello</Text>
+              </Container>
+              <Container flexGrow={1} margin={16} backgroundColor="blue" />
+            </Root>
             <IfInSessionMode allow={'immersive-ar'}>
-              <ObjectPlacement scale={0.1}>
+              <ObjectPlacement scale={1}>
                 <VectorField
                   bounds={bounds}
                   fieldSampler={layeredSampler as FieldSampler}
@@ -221,7 +186,6 @@ export function VectorFieldPage() {
             </IfInSessionMode>
             
             <IfInSessionMode deny={'immersive-ar'}>
-              <OrbitControls enableDamping />
               <ObjectPlacement>
                 <VectorField
                   bounds={bounds}
