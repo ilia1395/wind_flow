@@ -2,8 +2,12 @@
 // VectorField.tsx
 import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame, useThree } from '@react-three/fiber';
-import { Billboard, Text } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+
+import { DirectionLabels } from '@features/DirectionLabels';
+import { HeightLabels } from '@features/HeightLabels';
+import { StatusBillboard } from '@features/StatusBillboard';
+
 
 import type { FieldSampler } from '@shared/lib/types';
 import type { WindVector } from '@shared/lib/types';
@@ -94,112 +98,6 @@ function sampleField(
   return { vx, vy, vz, speed, turbulence: 0 };
 }
 
-function useTextTexture(label: string): THREE.Texture {
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas');
-    const width = 512;
-    const height = 256;
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
-    // transparent background
-    ctx.clearRect(0, 0, width, height);
-    // outline
-    ctx.font = 'bold 120px system-ui, Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.lineWidth = 12;
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.strokeText(label, width / 2, height / 2);
-    // fill
-    ctx.fillStyle = 'white';
-    ctx.fillText(label, width / 2, height / 2);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.needsUpdate = true;
-    tex.minFilter = THREE.LinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = 4;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    return tex;
-  }, [label]);
-  return texture;
-}
-
-const TextPlane: React.FC<{
-  text: string;
-  position: [number, number, number];
-  rotation?: [number, number, number];
-  size?: [number, number];
-  billboard?: boolean;
-}> = ({ text, position, rotation = [0, 0, 0], size = [1.8, 0.9], billboard = false }) => {
-  const tex = useTextTexture(text);
-  if (billboard) {
-    return (
-      <Billboard position={position} follow>
-        <mesh renderOrder={1}>
-          <planeGeometry args={size} />
-          <meshBasicMaterial map={tex} transparent depthWrite={false} />
-        </mesh>
-      </Billboard>
-    );
-  }
-  return (
-    <mesh position={position} rotation={rotation} renderOrder={1}>
-      <planeGeometry args={size} />
-      <meshBasicMaterial map={tex} transparent depthWrite={false} />
-    </mesh>
-  );
-};
-
-const HeightLabels: React.FC<{
-  heightSlices: number[];
-  bounds: [number, number, number];
-  edgeLabelMargin: number;
-}> = ({ heightSlices, bounds, edgeLabelMargin }) => {
-  const { camera } = useThree();
-  const minH = Math.min(...heightSlices);
-  const maxH = Math.max(...heightSlices);
-
-  // Determine closest vertical edge (x,z) to camera on XZ plane
-  const candidates: Array<[number, number]> = [
-    [bounds[0], bounds[2]],
-    [bounds[0], -bounds[2]],
-    [-bounds[0], bounds[2]],
-    [-bounds[0], -bounds[2]],
-  ];
-  let best: [number, number] = candidates[0];
-  let bestD2 = Infinity;
-  for (const [ex, ez] of candidates) {
-    const dx = camera.position.x - ex;
-    const dz = camera.position.z - ez;
-    const d2 = dx * dx + dz * dz;
-    if (d2 < bestD2) {
-      bestD2 = d2;
-      best = [ex, ez];
-    }
-  }
-  const [edgeX, edgeZ] = best;
-  const offX = edgeLabelMargin * Math.sign(edgeX || 1);
-  const offZ = edgeLabelMargin * Math.sign(edgeZ || 1);
-
-  return (
-    <group>
-      {heightSlices.map((h) => {
-        const t = (h - minH) / Math.max(1e-6, maxH - minH);
-        const y = THREE.MathUtils.lerp(-bounds[1], bounds[1], t);
-        return (
-          <TextPlane
-            key={`hlabel-${h}`}
-            text={`${h} m`}
-            position={[edgeX + offX, y, edgeZ + offZ]}
-            billboard
-            size={[1.2, 0.5]}
-          />
-        );
-      })}
-    </group>
-  );
-};
 
 const ParticleField: React.FC<{
   vectors?: WindVector[];
@@ -521,11 +419,10 @@ export const VectorField: React.FC<Props> = ({
         <meshBasicMaterial color="gray" wireframe transparent opacity={0.12} />
       </mesh>
 
-      {/* Height slices */}
+      {/* Height slices lines */}
       {heightSlices && heightSlices.length > 0 && (
         <group>
           {heightSlices.map((h) => {
-            // map meters to world Y
             const minH = Math.min(...heightSlices);
             const maxH = Math.max(...heightSlices);
             const t = (h - minH) / Math.max(1e-6, maxH - minH);
@@ -547,35 +444,11 @@ export const VectorField: React.FC<Props> = ({
         <HeightLabels heightSlices={heightSlices} bounds={bounds} edgeLabelMargin={edgeLabelMargin} />
       )}
 
-      {/* 2D overlay status text (camera-facing), auto-wrapped via drei Text */}
-      {statusText && (
-        <Billboard position={[0, bounds[1] + 0.8, 0]} follow>
-          <mesh renderOrder={2}>
-            <planeGeometry args={[5.2, 0.8]} />
-            <meshBasicMaterial color={new THREE.Color('black')} transparent opacity={0.15} />
-          </mesh>
-          <Text
-            position={[0, 0, 0.01]}
-            fontSize={0.25}
-            color="white"
-            outlineWidth={0.02}
-            outlineColor="black"
-            maxWidth={5.0}
-            lineHeight={1.15}
-            textAlign="center"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {statusText}
-          </Text>
-        </Billboard>
-      )}
+      {/* 2D overlay status text */}
+      <StatusBillboard text={statusText} y={bounds[1] + 0.8} />
 
-      {/* Direction labels as 2D planes pointing along +Z normal */}
-      <TextPlane text="NORTH" position={[0, floorY, -bounds[2] - labelMargin]} rotation={[-Math.PI / 2, 0, 0]} />
-      <TextPlane text="SOUTH" position={[0, floorY, bounds[2] + labelMargin]} rotation={[-Math.PI / 2, 0, 0]} />
-      <TextPlane text="EAST" position={[bounds[0] + labelMargin, floorY, 0]} rotation={[-Math.PI / 2, 0, 0]} />
-      <TextPlane text="WEST" position={[-bounds[0] - labelMargin, floorY, 0]} rotation={[-Math.PI / 2, 0, 0]} />
+      {/* Direction labels */}
+      <DirectionLabels bounds={bounds} floorY={floorY} labelMargin={labelMargin} />
 
       <ParticleField
         vectors={vectors}

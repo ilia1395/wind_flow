@@ -184,7 +184,7 @@ export function VectorFieldPage() {
       >
         Enter AR
       </button>
-        <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
+        <Canvas camera={{ position: [0, 0, 128], fov: 5 }}>
           <XR store={xr_store}>
             <IfInSessionMode allow={'immersive-ar'}>
               <ObjectPlacement scale={0.1}>
