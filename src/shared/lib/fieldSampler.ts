@@ -20,6 +20,7 @@ function hashNoise(x: number, y: number, z: number, t: number): number {
   return s - Math.floor(s);
 }
 
+// Sample field sampler
 export function createFieldSamplerForFrame(frame?: WindFrame, _opts?: { bounds?: [number, number, number] }): FieldSampler {
   const angle = meteoDirDegToRadXZ(frame?.directionDeg ?? 0);
   const baseVY = frame?.vertSpeedMean ?? 0;

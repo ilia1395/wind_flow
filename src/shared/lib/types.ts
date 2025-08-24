@@ -52,8 +52,6 @@ type FieldSample = {
   vz: number;
   speed: number;
   turbulence?: number;
-  gust?: number; // m/s above mean
-  gustRatio?: number; // (max-mean)/mean
 };
 
 export type FieldSampler = (x: number, y: number, z: number, time: number) => FieldSample;

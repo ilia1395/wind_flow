@@ -3,7 +3,6 @@ import { useMemo, useState, useEffect } from 'react';
 
 import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
 import { OrbitControls } from '@react-three/drei';
-import { Root, Container, Text } from '@react-three/uikit';
 import { Canvas } from '@react-three/fiber';
 import {
   IfInSessionMode,
@@ -144,13 +143,6 @@ export function VectorFieldPage() {
         <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
           <XR store={xr_store}>
             <OrbitControls />
-            {/* Example simple uikit layout */}
-            <Root backgroundColor="red" sizeX={2} sizeY={1} flexDirection="row">
-              <Container flexGrow={1} margin={16} backgroundColor="green">
-                <Text>Hello</Text>
-              </Container>
-              <Container flexGrow={1} margin={16} backgroundColor="blue" />
-            </Root>
             <IfInSessionMode allow={'immersive-ar'}>
               <ObjectPlacement scale={1}>
                 <VectorField

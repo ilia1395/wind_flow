@@ -249,7 +249,6 @@ const ParticleField: React.FC<{
     const vel = velocities;
     const radius = 2.5;
     const maxNeighbors = 12;
-    const accelScale = delta;
 
     for (let i = 0; i < pos.length; i += 3) {
       let x = pos[i + 0];
@@ -266,12 +265,11 @@ const ParticleField: React.FC<{
       deltaSpeed[particleIndex] = ds;
       prevSpeed[particleIndex] = s.speed;
 
-      // simple forces: accelerate towards field direction
-      // base advection strength from prev speed
-      const advectionScale = 0.5 + Math.min(3, s.speed);
-      vel[i + 0] += s.vx * accelScale * advectionScale;
-      vel[i + 1] += s.vy * accelScale * advectionScale;
-      vel[i + 2] += s.vz * accelScale * advectionScale;
+      const tau = 0.8;
+      const k   = 1 / tau; 
+      vel[i+0] += (s.vx - vel[i+0]) * k * delta;
+      vel[i+1] += (s.vy - vel[i+1]) * k * delta;
+      vel[i+2] += (s.vz - vel[i+2]) * k * delta;
 
       // integrate positions
       x += vel[i + 0] * delta;
