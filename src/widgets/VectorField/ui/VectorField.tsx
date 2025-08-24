@@ -242,39 +242,6 @@ const ParticleField: React.FC<{
   // Per-particle orientation angle in XZ-plane
   const angles = useMemo(() => new Float32Array(numParticles), [numParticles]);
 
-  // Triangle instancing for non-billboard arrows
-  const triVerts = useMemo(() => new Float32Array([
-    -0.3, -0.5, 0,
-     0.3, -0.5, 0,
-     0.0,  0.5, 0,
-  ]), []);
-  const instanceScales = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
-  const triangleVertex = `
-    attribute vec3 position;
-    attribute vec3 aInstancePosition;
-    attribute float aInstanceAngle;
-    attribute float aInstanceScale;
-    attribute vec3 aInstanceColor;
-    varying vec3 vColor;
-    void main() {
-      vColor = aInstanceColor;
-      vec3 p = position * aInstanceScale;
-      float s = sin(aInstanceAngle);
-      float c = cos(aInstanceAngle);
-      vec3 pr = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
-      vec4 mvPositionInst = modelViewMatrix * vec4(pr + aInstancePosition, 1.0);
-      gl_Position = projectionMatrix * mvPositionInst;
-    }
-  `;
-  const triangleFragment = `
-    varying vec3 vColor;
-    uniform float uOpacity;
-    void main() {
-      gl_FragColor = vec4(vColor, uOpacity);
-    }
-  `;
-  const triangleUniforms = useMemo(() => ({ uOpacity: { value: 1.0 } }), []);
-
   useFrame((state, delta) => {
     const vh = state.size.height * (state.viewport.dpr || 1);
     const fov = ((state.camera as THREE.PerspectiveCamera)?.fov ?? 45) * Math.PI / 180.0;
@@ -353,7 +320,7 @@ const ParticleField: React.FC<{
     }
 
     // Update trails: global decay then write current snapshot at head
-    const decayPerSecond = 0.5;
+    const decayPerSecond = 1.0;
     const decay = Math.pow(decayPerSecond, delta * 1);
 
     for (let c = 0; c < trailColors.length; c += 1) {
@@ -444,7 +411,7 @@ const ParticleField: React.FC<{
 
 export const VectorField: React.FC<Props> = ({
   vectors,
-  numParticles = 5000,
+  numParticles = 2000,
   fieldSampler,
   currentTime = 0,
   isPlaying = true,
