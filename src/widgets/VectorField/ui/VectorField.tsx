@@ -223,7 +223,7 @@ const ParticleField: React.FC<{
     }
   `;
   const trailPointUniforms = useMemo(() => ({
-    uSize: { value: 0.45 },
+    uSize: { value: 0.5 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -301,7 +301,7 @@ const ParticleField: React.FC<{
     }
 
     // Update trails: global decay then write current snapshot at head
-    const decayPerSecond = 0.1;
+    const decayPerSecond = 0.5;
     const decay = Math.pow(decayPerSecond, delta * 1);
 
     for (let c = 0; c < trailColors.length; c += 1) {
@@ -389,7 +389,7 @@ const ParticleField: React.FC<{
 
 export const VectorField: React.FC<Props> = ({
   vectors,
-  numParticles = 2000,
+  numParticles = 5000,
   fieldSampler,
   currentTime = 0,
   isPlaying = true,

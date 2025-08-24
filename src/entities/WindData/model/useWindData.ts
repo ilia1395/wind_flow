@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { type WindFrame, type FramesByHeight } from '../../../shared/lib/types';
 import { parseMastCsvByHeights, parseWindCsv } from '../api/windDataAPI';
 
-import mastCsvUrl from '../../../data/03122013-07082014_10min_res.csv?url';
+import mastCsvUrl from '../../../data/05092013-11112013_23s_res.csv?url';
 
 export function useWindData() {
   const [frames, setFrames] = useState<WindFrame[]>([]);
