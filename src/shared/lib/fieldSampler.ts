@@ -24,7 +24,6 @@ function hashNoise(x: number, y: number, z: number, t: number): number {
 export function createFieldSamplerForFrame(frame?: WindFrame, _opts?: { bounds?: [number, number, number] }): FieldSampler {
   const angle = meteoDirDegToRadXZ(frame?.directionDeg ?? 0);
   const baseVY = frame?.vertSpeedMean ?? 0;
-  const turb = frame?.turbulenceIntensity ?? 0;
   const horizStd = frame?.horizSpeedStd ?? 0;
   const vertStd = frame?.vertSpeedStd ?? 0;
   // const bounds = opts?.bounds ?? [5, 5, 5];
@@ -37,23 +36,28 @@ export function createFieldSamplerForFrame(frame?: WindFrame, _opts?: { bounds?:
   const gustRatio = meanHS > 0 ? gust / meanHS : 0;
 
   return (x: number, y: number, z: number, time: number) => {
-    // Add small spatially-varying perturbations shaped by std dev and TI
-    const n1 = hashNoise(x * 0.7, y * 0.7, z * 0.7, time * 0.3);
-    const n2 = hashNoise(x * 1.3 + 10, y * 0.9 + 3, z * 1.1 + 7, time * 0.5);
-    const n3 = hashNoise(x * 0.4 - 2, y * 1.5 + 4, z * 0.8 - 6, time * 0.2);
-
-    const turbScale = THREE.MathUtils.clamp(turb, 0, 2);
-    const jitterH = (n1 - 0.5) * 2 * horizStd * 0.6 * (0.5 + turbScale);
-    const jitterV = (n2 - 0.5) * 2 * vertStd * 0.6 * (0.5 + turbScale);
-    const angleJitter = (n3 - 0.5) * 0.35 * (0.3 + turbScale * 0.7);
-
+    // Component-wise noise scaled by measured std sigmas (approx. Gaussian from uniform)
     const baseHS = meanHS;
-    const vx = Math.cos(angle + angleJitter) * (baseHS + jitterH) + 0;
-    const vz = Math.sin(angle + angleJitter) * (baseHS + jitterH) + 0;
-    const vy = baseVY + jitterV * 0.4;
+    const vxBase = Math.cos(angle) * baseHS;
+    const vzBase = Math.sin(angle) * baseHS;
+
+    // Convert uniform noise in [-0.5,0.5] to approx N(0,1): multiply by sqrt(12)
+    const uVx = hashNoise(x * 0.9 + 11.1, y * 0.7 - 3.7, z * 1.1 + 5.3, time * 0.41) - 0.5;
+    const uVz = hashNoise(x * 1.2 - 6.2, y * 1.1 + 9.9, z * 0.8 - 7.7, time * 0.37) - 0.5;
+    const uVy = hashNoise(x * 0.6 + 2.4, y * 1.4 - 8.8, z * 1.3 + 4.2, time * 0.29) - 0.5;
+    const sqrt12 = Math.sqrt(12);
+    const sigmaHComp = (horizStd > 0 ? horizStd : 0) / Math.SQRT2; // split across vx,vz
+    const sigmaV = Math.max(0, vertStd);
+    const nVx = uVx * sqrt12 * sigmaHComp;
+    const nVz = uVz * sqrt12 * sigmaHComp;
+    const nVy = uVy * sqrt12 * sigmaV;
+
+    const vx = vxBase + nVx;
+    const vz = vzBase + nVz;
+    const vy = baseVY + nVy;
 
     const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-    const turbulence = THREE.MathUtils.clamp((horizStd + vertStd) / maxStd * (0.4 + turbScale * 0.6), 0, 1);
+    const turbulence = THREE.MathUtils.clamp((horizStd + vertStd) / maxStd, 0, 1);
     return { vx, vy, vz, speed, turbulence, gust, gustRatio };
   };
 }
@@ -128,6 +132,10 @@ export function createLayeredFieldSampler(
     const hs1 = f1?.horizSpeedMean ?? hs0;
     const vs0 = f0?.vertSpeedMean ?? 0;
     const vs1 = f1?.vertSpeedMean ?? vs0;
+    const hsStd0 = f0?.horizSpeedStd ?? 0;
+    const hsStd1 = f1?.horizSpeedStd ?? hsStd0;
+    const vsStd0 = f0?.vertSpeedStd ?? 0;
+    const vsStd1 = f1?.vertSpeedStd ?? vsStd0;
     const ti0 = f0?.turbulenceIntensity ?? 0;
     const ti1 = f1?.turbulenceIntensity ?? ti0;
 
@@ -138,27 +146,36 @@ export function createLayeredFieldSampler(
     const vz1 = Math.sin(angle1) * hs1;
     const vy1 = vs1;
 
-    const vx = THREE.MathUtils.lerp(vx0, vx1, tBlend);
-    const vy = THREE.MathUtils.lerp(vy0, vy1, tBlend);
-    const vz = THREE.MathUtils.lerp(vz0, vz1, tBlend);
+    const vxBase = THREE.MathUtils.lerp(vx0, vx1, tBlend);
+    const vyBase = THREE.MathUtils.lerp(vy0, vy1, tBlend);
+    const vzBase = THREE.MathUtils.lerp(vz0, vz1, tBlend);
     const turbulence = THREE.MathUtils.lerp(ti0, ti1, tBlend);
 
-    // Add small pseudo-noise variability similar to single-frame sampler
-    const n = hashNoise(x * 0.6, yWorld * 0.6, z * 0.6, time * 0.4);
-    const jitter = (n - 0.5) * 0.6 * (0.5 + turbulence);
-    const jAngle = jitter * 0.25;
-    const speedScale = 1 + jitter * 0.15;
-    const angleBase = Math.atan2(vz, vx) + jAngle;
-    const baseSpeed = Math.sqrt(vx * vx + vz * vz) * speedScale;
-    const vxJ = Math.cos(angleBase) * baseSpeed;
-    const vzJ = Math.sin(angleBase) * baseSpeed;
-    const vyJ = vy * (1 + jitter * 0.1);
+    // Variance-aware interpolation of std (σ²)
+    const hsVar = THREE.MathUtils.lerp(hsStd0 * hsStd0, hsStd1 * hsStd1, tBlend);
+    const vsVar = THREE.MathUtils.lerp(vsStd0 * vsStd0, vsStd1 * vsStd1, tBlend);
+    const sigmaH = Math.sqrt(Math.max(0, hsVar));
+    const sigmaV = Math.sqrt(Math.max(0, vsVar));
 
-    const speed = Math.sqrt(vxJ * vxJ + vyJ * vyJ + vzJ * vzJ);
+    // Component-wise additive noise (approx Gaussian)
+    const uVx = hashNoise(x * 0.91 + 1.7, yWorld * 0.63 + 5.4, z * 1.07 - 2.9, time * 0.43) - 0.5;
+    const uVz = hashNoise(x * 1.27 - 8.1, yWorld * 1.11 - 3.3, z * 0.79 + 7.6, time * 0.31) - 0.5;
+    const uVy = hashNoise(x * 0.58 + 4.5, yWorld * 1.36 + 2.2, z * 1.24 - 6.8, time * 0.27) - 0.5;
+    const sqrt12 = Math.sqrt(12);
+    const sigmaHComp = sigmaH / Math.SQRT2;
+    const nVx = uVx * sqrt12 * sigmaHComp;
+    const nVz = uVz * sqrt12 * sigmaHComp;
+    const nVy = uVy * sqrt12 * sigmaV;
+
+    const vx = vxBase + nVx;
+    const vy = vyBase + nVy;
+    const vz = vzBase + nVz;
+
+    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
     const meanHS = THREE.MathUtils.lerp(hs0, hs1, tBlend);
     const maxHS = THREE.MathUtils.lerp(f0?.horizSpeedMax ?? hs0, f1?.horizSpeedMax ?? hs1, tBlend);
     const g = Math.max(0, maxHS - meanHS);
     const gr = meanHS > 0 ? g / meanHS : 0;
-    return { vx: vxJ, vy: vyJ, vz: vzJ, speed, turbulence, gust: g, gustRatio: gr };
+    return { vx, vy, vz, speed, turbulence, gust: g, gustRatio: gr };
   };
 }
