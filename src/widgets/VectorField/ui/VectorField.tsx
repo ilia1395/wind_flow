@@ -159,16 +159,19 @@ const ParticleField: React.FC<{
   const sizes          = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
   const trailDotSizes  = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH).fill(0), [numParticles]);
 
-  // Minimal custom shader to support per-particle size and circular points
+  // Minimal custom shader to support per-particle size and oriented triangle sprites
   const particleVertex = `
     attribute float aSize;
+    attribute float aAngle;
     attribute vec3 color;
     varying vec3 vColor;
+    varying float vAngle;
     uniform float uSize;             // global px scale
     uniform float uViewportHeight;   // pixels
     uniform float uFov;              // radians
     void main() {
       vColor = color;
+      vAngle = aAngle;
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       float projScale = uViewportHeight / (2.0 * tan(uFov * 0.5));
       float scaleFactor = length(modelMatrix[0].xyz);
@@ -179,17 +182,24 @@ const ParticleField: React.FC<{
   `;
   const particleFragment = `
     varying vec3 vColor;
+    varying float vAngle;
     uniform float uOpacity;
     void main() {
-      // circular sprite
-      vec2 c = gl_PointCoord - vec2(0.5);
-      float r = dot(c, c);
-      if (r > 0.25) discard;
+      // oriented isosceles triangle sprite
+      vec2 p = gl_PointCoord - vec2(0.5);
+      float s = sin(-vAngle);
+      float c = cos(-vAngle);
+      vec2 pr = vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+      // Triangle pointing up: base at y=-h, apex at y=+h
+      float h = 0.2; // inset to avoid clipping in the point quad
+      if (pr.y < -h || pr.y > h) discard;
+      float halfWidth = (h - pr.y); // width shrinks toward apex (y=+h)
+      if (abs(pr.x) > halfWidth) discard;
       gl_FragColor = vec4(vColor, uOpacity);
     }
   `;
   const particleUniforms = useMemo(() => ({
-    uSize: { value: 0.5 },
+    uSize: { value: 1.2 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -228,6 +238,42 @@ const ParticleField: React.FC<{
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
   }), []);
+
+  // Per-particle orientation angle in XZ-plane
+  const angles = useMemo(() => new Float32Array(numParticles), [numParticles]);
+
+  // Triangle instancing for non-billboard arrows
+  const triVerts = useMemo(() => new Float32Array([
+    -0.3, -0.5, 0,
+     0.3, -0.5, 0,
+     0.0,  0.5, 0,
+  ]), []);
+  const instanceScales = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
+  const triangleVertex = `
+    attribute vec3 position;
+    attribute vec3 aInstancePosition;
+    attribute float aInstanceAngle;
+    attribute float aInstanceScale;
+    attribute vec3 aInstanceColor;
+    varying vec3 vColor;
+    void main() {
+      vColor = aInstanceColor;
+      vec3 p = position * aInstanceScale;
+      float s = sin(aInstanceAngle);
+      float c = cos(aInstanceAngle);
+      vec3 pr = vec3(c * p.x + s * p.z, p.y, -s * p.x + c * p.z);
+      vec4 mvPositionInst = modelViewMatrix * vec4(pr + aInstancePosition, 1.0);
+      gl_Position = projectionMatrix * mvPositionInst;
+    }
+  `;
+  const triangleFragment = `
+    varying vec3 vColor;
+    uniform float uOpacity;
+    void main() {
+      gl_FragColor = vec4(vColor, uOpacity);
+    }
+  `;
+  const triangleUniforms = useMemo(() => ({ uOpacity: { value: 1.0 } }), []);
 
   useFrame((state, delta) => {
     const vh = state.size.height * (state.viewport.dpr || 1);
@@ -298,6 +344,12 @@ const ParticleField: React.FC<{
       col[i + 0] = r;
       col[i + 1] = g;
       col[i + 2] = b;
+
+      // orientation angle from velocity in XZ plane
+      const ax = vel[i + 0];
+      const az = vel[i + 2];
+      const angle = (Math.abs(ax) + Math.abs(az)) > 1e-6 ? Math.atan2(az, ax) : 0.0;
+      angles[particleIndex] = angle;
     }
 
     // Update trails: global decay then write current snapshot at head
@@ -337,6 +389,7 @@ const ParticleField: React.FC<{
       (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('color')    as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('aSize')    as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('aAngle')   as THREE.BufferAttribute).needsUpdate = true;
     }
 
     if (trailDotsRef.current) {
@@ -374,10 +427,12 @@ const ParticleField: React.FC<{
           <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color"    args={[colors,    3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-aSize"    args={[sizes,     1]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-aAngle"   args={[angles,    1]} usage={THREE.DynamicDrawUsage} />
         </bufferGeometry>
         <shaderMaterial
           transparent
           depthWrite={false}
+          depthTest={false}
           vertexShader={particleVertex}
           fragmentShader={particleFragment}
           uniforms={particleUniforms}
