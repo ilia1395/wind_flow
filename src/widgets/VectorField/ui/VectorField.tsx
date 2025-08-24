@@ -16,7 +16,6 @@ import type { PreparedVector } from '@shared/lib/types';
 type Props = {
   vectors?: WindVector[];
   numParticles?: number;
-  bounds?: [number, number, number]; // half-extents (x,y,z)
   fieldSampler?: FieldSampler; // optional procedural sampler
   currentTime?: number; // seconds
   isPlaying?: boolean; // control simulation integration
@@ -151,7 +150,7 @@ const ParticleField: React.FC<{
   const trailDotsRef = useRef<THREE.Points>(null);
   const trailHeadRef   = useRef(0);
 
-  const TRAIL_LENGTH = 24;
+  const TRAIL_LENGTH = 128;
   const trailPositions = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const trailColors    = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const prevSpeed      = useMemo(() => new Float32Array(numParticles), [numParticles]);
@@ -190,7 +189,7 @@ const ParticleField: React.FC<{
     }
   `;
   const particleUniforms = useMemo(() => ({
-    uSize: { value: 0.025 },
+    uSize: { value: 0.5 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -224,7 +223,7 @@ const ParticleField: React.FC<{
     }
   `;
   const trailPointUniforms = useMemo(() => ({
-    uSize: { value: 0.05 },
+    uSize: { value: 0.45 },
     uViewportHeight: { value: 400.0 },
     uFov: { value: 45 * Math.PI / 180 },
     uOpacity: { value: 1.0 },
@@ -391,13 +390,26 @@ const ParticleField: React.FC<{
 export const VectorField: React.FC<Props> = ({
   vectors,
   numParticles = 2000,
-  bounds = [5, 5, 5],
   fieldSampler,
   currentTime = 0,
   isPlaying = true,
   heightSlices,
   statusText,
 }) => {
+  // Derive world bounds from lidar heights: set Y span to data span (meters), X/Z proportional
+  const derivedBounds: [number, number, number] = useMemo(() => {
+    if (heightSlices && heightSlices.length > 0) {
+      const minH = Math.min(...heightSlices);
+      const maxH = Math.max(...heightSlices);
+      const span = Math.max(1, maxH - minH);
+      const halfY = span * 0.5; // 1 unit = 1 meter
+      const halfXZ = halfY; // proportional aspect (square footprint)
+      return [halfXZ, halfY, halfXZ];
+    }
+    return [5, 5, 5];
+  }, [heightSlices]);
+
+  const bounds = derivedBounds;
   const particleCount = useMemo(() => {
     if (numParticles && numParticles > 0) return numParticles;
     const base = (vectors?.length ?? 0) > 0 ? (vectors!.length * 10) : 1500;

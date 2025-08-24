@@ -140,13 +140,12 @@ export function VectorFieldPage() {
       >
         Enter AR
       </button>
-        <Canvas camera={{ position: [0, 0, 256], fov: 5 }}>
+        <Canvas camera={{ position: [0, 0, 2048], fov: 5, near: 0.1, far: 100000 }}>
           <XR store={xr_store}>
             <OrbitControls />
             <IfInSessionMode allow={'immersive-ar'}>
               <ObjectPlacement scale={1}>
                 <VectorField
-                  bounds={bounds}
                   fieldSampler={layeredSampler as FieldSampler}
                   currentTime={time}
                   heightSlices={heightOrder.length ? heightOrder : undefined}
@@ -180,7 +179,6 @@ export function VectorFieldPage() {
             <IfInSessionMode deny={'immersive-ar'}>
               <ObjectPlacement>
                 <VectorField
-                  bounds={bounds}
                   fieldSampler={layeredSampler as FieldSampler}
                   currentTime={time}
                   heightSlices={heightOrder.length ? heightOrder : undefined}

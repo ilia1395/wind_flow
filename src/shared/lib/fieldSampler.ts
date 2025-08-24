@@ -82,16 +82,26 @@ export function createLayeredFieldSampler(
     return arr[idx];
   }
 
-  const bounds = opts?.bounds ?? [5, 5, 5];
+  // If bounds passed, use them; otherwise derive y-span from data heights so 1 unit = 1 meter
+  const bounds = (() => {
+    if (opts?.bounds) return opts.bounds;
+    if (heights && heights.length > 0) {
+      const minH = Math.min(...heights);
+      const maxH = Math.max(...heights);
+      const span = Math.max(1, maxH - minH);
+      const halfY = span * 0.5;
+      const halfXZ = halfY;
+      return [halfXZ, halfY, halfXZ] as [number, number, number];
+    }
+    return [5, 5, 5] as [number, number, number];
+  })();
 
   return (x: number, yWorld: number, z: number, time: number) => {
     // Map world Y to height meters range for blending
     const minH = sortedHeights[0];
     const maxH = sortedHeights[sortedHeights.length - 1];
-    const yMin = -bounds[1];
-    const yMax = bounds[1];
-    const tNorm = THREE.MathUtils.clamp((yWorld - yMin) / (yMax - yMin), 0, 1);
-    const yMeters = THREE.MathUtils.lerp(minH, maxH, tNorm);
+    // World units calibrated: 1 unit ~ 1 meter by deriving bounds from heights
+    const yMeters = THREE.MathUtils.clamp(yWorld + minH + bounds[1], minH, maxH);
 
     // Find surrounding heights
     let lower = sortedHeights[0];
