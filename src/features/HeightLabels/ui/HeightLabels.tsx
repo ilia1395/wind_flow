@@ -46,7 +46,7 @@ export const HeightLabels: React.FC<Props> = ({ heightSlices, bounds, edgeLabelM
             text={`${h} m`}
             position={[edgeX + offX, y, edgeZ + offZ]}
             billboard
-            size={[1.2, 0.5]}
+            size={[12, 6]}
           />
         );
       })}

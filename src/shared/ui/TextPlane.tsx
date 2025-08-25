@@ -35,7 +35,7 @@ export const TextPlane: React.FC<{
   rotation?: [number, number, number];
   size?: [number, number];
   billboard?: boolean;
-}> = ({ text, position, rotation = [0, 0, 0], size = [1.8, 0.9], billboard = false }) => {
+}> = ({ text, position, rotation = [0, 0, 0], size = [24, 12], billboard = false }) => {
   const tex = useTextTexture(text);
   if (billboard) {
     return (

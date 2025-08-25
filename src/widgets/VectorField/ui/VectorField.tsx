@@ -440,8 +440,8 @@ export const VectorField: React.FC<Props> = ({
 
   const boxSize: [number, number, number] = [bounds[0] * 2, bounds[1] * 2, bounds[2] * 2];
   const floorY = -bounds[1] + 0.02;
-  const labelMargin = 0.8;
-  const edgeLabelMargin = 0.6;
+  const labelMargin = 6;
+  const edgeLabelMargin = 2;
 
   return (
     <>
@@ -477,7 +477,7 @@ export const VectorField: React.FC<Props> = ({
       )}
 
       {/* 2D overlay status text */}
-      <StatusBillboard text={statusText} y={bounds[1] + 0.8} />
+      <StatusBillboard text={statusText} y={bounds[1] + 8} />
 
       {/* Direction labels */}
       <DirectionLabels bounds={bounds} floorY={floorY} labelMargin={labelMargin} />

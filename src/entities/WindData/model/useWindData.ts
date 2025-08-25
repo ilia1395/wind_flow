@@ -21,11 +21,15 @@ export function useWindData() {
           setHeightOrder(heights);
           setFrames([]);
           setFrameIndex(0);
-        } catch {
-          // ignore
+        } catch (e) {
+          if (typeof e === 'string') {
+            throw Error(e);
+          } else {
+            throw Error('Unknown error');
+          }
         }
       })
-      .catch(() => void 0);
+      .catch((e) => {throw Error(e); });
   }, []);
 
   const timelineInfo = useMemo(() => {

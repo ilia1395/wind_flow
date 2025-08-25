@@ -26,7 +26,6 @@ export function createFieldSamplerForFrame(frame?: WindFrame, _opts?: { bounds?:
   const baseVY = frame?.vertSpeedMean ?? 0;
   const horizStd = frame?.horizSpeedStd ?? 0;
   const vertStd = frame?.vertSpeedStd ?? 0;
-  // const bounds = opts?.bounds ?? [5, 5, 5];
 
   // Precompute clamps for coloring/scaling
   const maxStd = Math.max(1, Math.max(horizStd, vertStd) * 2);
