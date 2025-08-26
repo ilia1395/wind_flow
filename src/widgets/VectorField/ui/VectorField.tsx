@@ -11,7 +11,7 @@ import { StatusBillboard } from '@features/StatusBillboard';
 
 import type { FieldSampler } from '@entities/FieldSampler';
 // import { buildSpatialGrid } from '@entities/FieldSampler';
-import type { WindVector, PreparedVector } from '../model/types';
+import type { WindVector, PreparedVector } from '../types/types';
 
 type Props = {
   vectors?: WindVector[];
