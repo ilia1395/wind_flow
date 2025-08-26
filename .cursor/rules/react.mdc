@@ -1,0 +1,60 @@
+---
+globs: *.ts,*.tsx
+alwaysApply: false
+---
+# React Best Practices: A Comprehensive Guide
+
+This document outlines the best practices for developing React applications, covering various aspects from code organization to security and testing. Following these guidelines leads to more maintainable, scalable, and performant applications.
+
+## 1. Code Organization and Structure
+
+### 1.2 File Naming Conventions
+
+-   **Components**: Use PascalCase (e.g., `MyComponent.jsx`).
+-   **Hooks**: Use camelCase prefixed with `use` (e.g., `useMyHook.js`).
+-   **Contexts**: Use PascalCase suffixed with `Context` (e.g., `MyContext.jsx`).
+-   **Services/Utils**: Use camelCase (e.g., `apiService.js`, `stringUtils.js`).
+-   **CSS Modules**: Use `.module.css` or `.module.scss` (e.g., `Button.module.css`).
+
+## 2. Common Patterns and Anti-patterns
+
+### 2.2 Recommended Approaches
+
+-   **API Calls**: Use `useEffect` hook to make API calls and manage loading states.
+-   **List Rendering**: Always provide a unique and stable `key` prop when rendering lists.
+
+### 2.3 Anti-patterns and Code Smells
+-   **Over-Engineering**: Avoid using complex solutions for simple problems.
+-   **Prop Drilling**: Passing props through multiple levels of components without them being used.
+
+## 3. Performance Considerations
+
+### 3.1 Optimization Techniques
+
+-   **Memoization**: Use `React.memo`, `useMemo`, and `useCallback` to prevent unnecessary re-renders and recalculations.
+-   **Code Splitting**: Load code on demand using `React.lazy` and `Suspense`.
+
+### 3.2 Memory Management
+
+-   **Avoid Memory Leaks**: Clean up event listeners, timers, and subscriptions in `useEffect`'s cleanup function.
+-   **Release Unused Objects**: Avoid holding onto large objects in memory when they are no longer needed.
+-   **Garbage Collection**: Understand how JavaScript's garbage collection works and avoid creating unnecessary objects.
+
+### 3.3 Rendering Optimization
+
+-   **Minimize State Updates**: Avoid unnecessary state updates that trigger re-renders.
+-   **Batch Updates**: Batch multiple state updates into a single update using `ReactDOM.unstable_batchedUpdates`.
+-   **Keys**: Ensure that keys are unique and consistent across renders.
+
+### 3.4 Bundle Size Optimization
+
+-   **Tree Shaking**: Remove unused code during the build process.
+-   **Minification**: Reduce the size of JavaScript and CSS files.
+-   **Image Optimization**: Compress and optimize images to reduce file size.
+-   **Dependency Analysis**: Use tools like `webpack-bundle-analyzer` to identify large dependencies.
+
+### 3.5 Lazy Loading Strategies
+
+-   **Route-Based Lazy Loading**: Load components when a user navigates to a specific route.
+-   **Component-Based Lazy Loading**: Load components when they are about to be rendered.
+-   **Intersection Observer**: Load components when they become visible in the viewport.

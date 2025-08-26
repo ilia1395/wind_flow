@@ -14,7 +14,7 @@ import { xr_store } from '@shared/lib/XRStoreInit';
 import { VectorField } from '@widgets/VectorField';
 import { ObjectPlacement } from '@features/ObjectPlacement';
 import { PlaybackControls } from '@widgets/PlaybackControls';
-import { createLayeredFieldSampler, createFieldSamplerForFrame } from '@shared/lib/fieldSampler';
+import { createLayeredFieldSampler } from '@entities/FieldSampler/model/fieldSampler';
 
 export function VectorFieldPage() {
   const {
@@ -28,7 +28,6 @@ export function VectorFieldPage() {
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [time, setTime] = useState(0);
-  const [bounds] = useState<[number, number, number]>([6, 4, 6]);
   
   useEffect(() => {
     if (!isPlaying) return;
@@ -55,10 +54,9 @@ export function VectorFieldPage() {
 
   const layeredSampler = useMemo(() => {
     if (heightOrder.length && Object.keys(framesByHeight).length) {
-      return createLayeredFieldSampler(framesByHeight, heightOrder, frameIndex, { bounds });
+      return createLayeredFieldSampler(framesByHeight, heightOrder, frameIndex);
     }
-    return createFieldSamplerForFrame(currentFrame, { bounds });
-  }, [framesByHeight, heightOrder, frameIndex, currentFrame, bounds]);
+  }, [framesByHeight, heightOrder, frameIndex, currentFrame]);
 
   const displayTimeLabel = useMemo(() => {
     // Prefer original string to avoid TZ shifts if present

@@ -9,9 +9,9 @@ import { HeightLabels } from '@features/HeightLabels';
 import { StatusBillboard } from '@features/StatusBillboard';
 
 
-import type { FieldSampler } from '@shared/lib/types';
-import type { WindVector } from '@shared/lib/types';
-import type { PreparedVector } from '@shared/lib/types';
+import { FieldSampler } from '@entities/WindData/lib/types';
+import type { WindVector } from '@entities/WindData/lib/types';
+import type { PreparedVector } from '@entities/WindData/lib/types';
 
 type Props = {
   vectors?: WindVector[];
@@ -22,81 +22,6 @@ type Props = {
   heightSlices?: number[]; // meters
   statusText?: string; // overlay text
 };
-
-function buildSpatialGrid(vectors: PreparedVector[], cellSize: number) : Map<string, number[]>  {
-  const grid = new Map<string, number[]>();
-  for (let i = 0; i < vectors.length; i += 1) {
-    const v = vectors[i];
-    const cx = Math.floor(v.px / cellSize);
-    const cy = Math.floor(v.py / cellSize);
-    const cz = Math.floor(v.pz / cellSize);
-    const key = `${cx}|${cy}|${cz}`;
-    let bucket = grid.get(key);
-    if (!bucket) {
-      bucket = [];
-      grid.set(key, bucket);
-    }
-    bucket.push(i);
-  }
-  return grid;
-}
-
-function sampleField(
-  x: number,
-  y: number,
-  z: number,
-  grid: Map<string, number[]>,
-  data: PreparedVector[],
-  cellSize: number,
-  radius: number,
-  maxNeighbors: number,
-): { vx: number; vy: number; vz: number; speed: number; turbulence?: number } {
-  const cx = Math.floor(x / cellSize);
-  const cy = Math.floor(y / cellSize);
-  const cz = Math.floor(z / cellSize);
-  const radiusCells = Math.max(1, Math.ceil(radius / cellSize));
-
-  let sumVX = 0;
-  let sumVY = 0;
-  let sumVZ = 0;
-  let weightSum = 0;
-  let neighborsCount = 0;
-
-  for (let ix = -radiusCells; ix <= radiusCells; ix += 1) {
-    for (let iy = -radiusCells; iy <= radiusCells; iy += 1) {
-      for (let iz = -radiusCells; iz <= radiusCells; iz += 1) {
-        const key = `${cx + ix}|${cy + iy}|${cz + iz}`;
-        const bucket = grid.get(key);
-        if (!bucket) continue;
-        for (let bi = 0; bi < bucket.length; bi += 1) {
-          const idx = bucket[bi];
-          const v = data[idx];
-          const dx = x - v.px;
-          const dy = y - v.py;
-          const dz = z - v.pz;
-          const distSq = dx * dx + dy * dy + dz * dz;
-          const dist = Math.sqrt(distSq);
-          if (dist > radius) continue;
-          const w = 1 / (1 + dist); // inverse distance weighting
-          sumVX += v.vx * w;
-          sumVY += v.vy * w;
-          sumVZ += v.vz * w;
-          weightSum += w;
-          neighborsCount += 1;
-          if (neighborsCount >= maxNeighbors) break;
-        }
-      }
-    }
-  }
-
-  if (weightSum === 0) return { vx: 0, vy: 0, vz: 0, speed: 0, turbulence: 0 };
-  const vx = sumVX / weightSum;
-  const vy = sumVY / weightSum;
-  const vz = sumVZ / weightSum;
-  const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-  return { vx, vy, vz, speed, turbulence: 0 };
-}
-
 
 const ParticleField: React.FC<{
   vectors?: WindVector[];
@@ -259,17 +184,13 @@ const ParticleField: React.FC<{
     const pos = positions;
     const col = colors;
     const vel = velocities;
-    const radius = 2.5;
-    const maxNeighbors = 12;
 
     for (let i = 0; i < pos.length; i += 3) {
       let x = pos[i + 0];
       let y = pos[i + 1];
       let z = pos[i + 2];
 
-      const s = fieldSampler
-        ? fieldSampler(x, y, z, currentTime)
-        : sampleField(x, y, z, grid, prepared, cellSize, radius, maxNeighbors);
+      const s = fieldSampler(x, y, z, currentTime);
 
       const particleIndex = i / 3;
       curSpeed[particleIndex] = s.speed;

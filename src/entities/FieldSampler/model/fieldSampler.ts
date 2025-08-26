@@ -1,72 +1,38 @@
 
 import * as THREE from 'three';
-import { type WindFrame, type FieldSampler, type FramesByHeight } from './types';
+import { meteoDirDegToRadXZ } from '@shared/lib/math/meteoData';
+import { hashNoise } from '@shared/lib/math/simulation';
+import type { FieldSampler } from '../types/types';
+import type { FramesByHeight, WindFrame } from '@entities/WindData/types/types';
 
-function degToRad(deg: number) {
-  return (deg * Math.PI) / 180;
-}
 
-function meteoDirDegToRadXZ(deg: number) {
-  // Meteorological direction points FROM the direction (e.g., 0 = from North towards South).
-  // Convert to a flow vector pointing TO the movement direction in XZ plane.
-  const rad = degToRad(deg);
-  const flowAngle = rad + Math.PI; // reverse
-  return flowAngle;
-}
-
-// Lightweight pseudo-noise for turbulence (deterministic, cheap)
-function hashNoise(x: number, y: number, z: number, t: number): number {
-  const s = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719 + t * 0.151) * 43758.5453;
-  return s - Math.floor(s);
-}
-
-// Sample field sampler
-export function createFieldSamplerForFrame(frame?: WindFrame, _opts?: { bounds?: [number, number, number] }): FieldSampler {
-  const angle = meteoDirDegToRadXZ(frame?.directionDeg ?? 0);
-  const baseVY = frame?.vertSpeedMean ?? 0;
-  const horizStd = frame?.horizSpeedStd ?? 0;
-  const vertStd = frame?.vertSpeedStd ?? 0;
-
-  // Precompute clamps for coloring/scaling
-  const maxStd = Math.max(1, Math.max(horizStd, vertStd) * 2);
-  const meanHS = frame?.horizSpeedMean ?? 0;
-  const maxHS = frame?.horizSpeedMax ?? meanHS;
-  const gust = Math.max(0, maxHS - meanHS);
-  const gustRatio = meanHS > 0 ? gust / meanHS : 0;
-
-  return (x: number, y: number, z: number, time: number) => {
-    // Component-wise noise scaled by measured std sigmas (approx. Gaussian from uniform)
-    const baseHS = meanHS;
-    const vxBase = Math.cos(angle) * baseHS;
-    const vzBase = Math.sin(angle) * baseHS;
-
-    // Convert uniform noise in [-0.5,0.5] to approx N(0,1): multiply by sqrt(12)
-    const uVx = hashNoise(x * 0.9 + 11.1, y * 0.7 - 3.7, z * 1.1 + 5.3, time * 0.41) - 0.5;
-    const uVz = hashNoise(x * 1.2 - 6.2, y * 1.1 + 9.9, z * 0.8 - 7.7, time * 0.37) - 0.5;
-    const uVy = hashNoise(x * 0.6 + 2.4, y * 1.4 - 8.8, z * 1.3 + 4.2, time * 0.29) - 0.5;
-    const sqrt12 = Math.sqrt(12);
-    const sigmaHComp = (horizStd > 0 ? horizStd : 0) / Math.SQRT2; // split across vx,vz
-    const sigmaV = Math.max(0, vertStd);
-    const nVx = uVx * sqrt12 * sigmaHComp;
-    const nVz = uVz * sqrt12 * sigmaHComp;
-    const nVy = uVy * sqrt12 * sigmaV;
-
-    const vx = vxBase + nVx;
-    const vz = vzBase + nVz;
-    const vy = baseVY + nVy;
-
-    const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-    const turbulence = THREE.MathUtils.clamp((horizStd + vertStd) / maxStd, 0, 1);
-    return { vx, vy, vz, speed, turbulence, gust, gustRatio };
-  };
+// spatial grid
+export function buildSpatialGrid(
+  vectors: Array<{ px: number; py: number; pz: number; vx: number; vy: number; vz: number; speed: number }>,
+  cellSize: number,
+): Map<string, number[]>  {
+  const grid = new Map<string, number[]>();
+  for (let i = 0; i < vectors.length; i += 1) {
+    const v = vectors[i];
+    const cx = Math.floor(v.px / cellSize);
+    const cy = Math.floor(v.py / cellSize);
+    const cz = Math.floor(v.pz / cellSize);
+    const key = `${cx}|${cy}|${cz}`;
+    let bucket = grid.get(key);
+    if (!bucket) {
+      bucket = [];
+      grid.set(key, bucket);
+    }
+    bucket.push(i);
+  }
+  return grid;
 }
 
 // Create layered sampler that blends between heights based on Y.
 export function createLayeredFieldSampler(
   framesByHeight: FramesByHeight,
   heights: number[],
-  frameIndex: number, // integer or fractional index in the time sequence
-  opts?: { bounds?: [number, number, number] },
+  frameIndex: number,
 ): FieldSampler {
   const sortedHeights = [...heights].sort((a, b) => a - b);
   // Choose the same index across heights; clamp to available length per height
@@ -85,18 +51,17 @@ export function createLayeredFieldSampler(
     return arr[idx];
   }
 
-  // If bounds passed, use them; otherwise derive y-span from data heights so 1 unit = 1 meter
+  // derive y-span from data heights so 1 unit = 1 meter
   const bounds = (() => {
-    if (opts?.bounds) return opts.bounds;
     if (heights && heights.length > 0) {
       const minH = Math.min(...heights);
       const maxH = Math.max(...heights);
       const span = Math.max(1, maxH - minH);
       const halfY = span * 0.5;
       const halfXZ = halfY;
-      return [halfXZ, halfY, halfXZ] as [number, number, number];
+      return [halfXZ, halfY, halfXZ];
     }
-    return [5, 5, 5] as [number, number, number];
+    return [5, 5, 5];
   })();
 
   return (x: number, yWorld: number, z: number, time: number) => {
