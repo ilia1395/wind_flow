@@ -9,9 +9,9 @@ import { HeightLabels } from '@features/HeightLabels';
 import { StatusBillboard } from '@features/StatusBillboard';
 
 
-import { FieldSampler } from '@entities/WindData/lib/types';
-import type { WindVector } from '@entities/WindData/lib/types';
-import type { PreparedVector } from '@entities/WindData/lib/types';
+import type { FieldSampler } from '@entities/FieldSampler';
+// import { buildSpatialGrid } from '@entities/FieldSampler';
+import type { WindVector, PreparedVector } from '../model/types';
 
 type Props = {
   vectors?: WindVector[];
@@ -31,7 +31,8 @@ const ParticleField: React.FC<{
   currentTime: number;
   isPlaying: boolean;
 }> = ({ vectors, numParticles, bounds, fieldSampler, currentTime, isPlaying }) => {
-  const { positions, colors, velocities, prepared, grid, cellSize } = useMemo(() => {
+  const { positions, colors, velocities } = useMemo(() => {
+    // Precompute components from input vectors if provided
     const preparedVectors: PreparedVector[] = (vectors ?? []).map((v) => {
       const angle = v.direction; // radians around Y axis
       const vx = Math.cos(angle) * v.speed;
@@ -40,8 +41,9 @@ const ParticleField: React.FC<{
       return { px: v.position[0], py: v.position[1], pz: v.position[2], vx, vy, vz, speed: v.speed };
     });
 
-    const gridCellSize = 1.5;
-    const spatialGrid = preparedVectors.length ? buildSpatialGrid(preparedVectors, gridCellSize) : new Map<string, number[]>();
+    const gridCellSize = 1.5; // reserved for potential spatial grid usage
+    // Spatial grid available if needed for neighbor queries
+    // const spatialGrid = preparedVectors.length ? buildSpatialGrid(preparedVectors, gridCellSize) : new Map<string, number[]>();
 
     const pos = new Float32Array(numParticles * 3);
     const col = new Float32Array(numParticles * 3);
@@ -58,12 +60,18 @@ const ParticleField: React.FC<{
       col[i * 3 + 0] = 1;
       col[i * 3 + 1] = 1;
       col[i * 3 + 2] = 1;
-      vel[i * 3 + 0] = 0;
-      vel[i * 3 + 1] = 0;
-      vel[i * 3 + 2] = 0;
+      if (preparedVectors[i]) {
+        vel[i * 3 + 0] = preparedVectors[i].vx;
+        vel[i * 3 + 1] = preparedVectors[i].vy;
+        vel[i * 3 + 2] = preparedVectors[i].vz;
+      } else {
+        vel[i * 3 + 0] = 0;
+        vel[i * 3 + 1] = 0;
+        vel[i * 3 + 2] = 0;
+      }
     }
 
-    return { positions: pos, colors: col, velocities: vel, prepared: preparedVectors, grid: spatialGrid, cellSize: gridCellSize };
+    return { positions: pos, colors: col, velocities: vel };
   }, [vectors, numParticles, bounds]);
 
   const halfX = bounds[0];
@@ -190,7 +198,7 @@ const ParticleField: React.FC<{
       let y = pos[i + 1];
       let z = pos[i + 2];
 
-      const s = fieldSampler(x, y, z, currentTime);
+      const s = fieldSampler ? fieldSampler(x, y, z, currentTime) : { vx: 0, vy: 0, vz: 0, speed: 0 };
 
       const particleIndex = i / 3;
       curSpeed[particleIndex] = s.speed;
