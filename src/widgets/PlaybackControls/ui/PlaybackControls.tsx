@@ -1,132 +1,88 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { PlaybackControlsView } from './PlaybackControlsView';
+import { usePlaybackStore } from '@features/Playback';
+import { useWindStore } from '@entities/WindData';
 
-type PlaybackControlsViewProps = {
-  isPlaying: boolean;
-  onTogglePlay: () => void;
-  onStop: () => void;
-  playbackRate: number;
-  onPlaybackRateChange: (rate: number) => void;
-  frameIndex: number;
-  onFrameIndexChange: (index: number) => void;
-  timelineLength: number;
-  displayTimeLabel?: string;
-};
+// Intentionally no props; this is a widget-level controller that connects stores to the presentational view.
 
-const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
-  isPlaying,
-  onTogglePlay,
-  onStop,
-  playbackRate,
-  onPlaybackRateChange,
-  frameIndex,
-  onFrameIndexChange,
-  timelineLength,
-  displayTimeLabel,
-}) => {
-  const clampedIndex = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineLength - 1));
+export const PlaybackControls: React.FC = () => {
+  const isPlaying = usePlaybackStore((s) => s.isPlaying);
+  const playbackRate = usePlaybackStore((s) => s.playbackRate);
+  const setIsPlaying = usePlaybackStore((s) => s.setIsPlaying);
+  const toggleIsPlaying = usePlaybackStore((s) => s.toggleIsPlaying);
+  const setPlaybackRate = usePlaybackStore((s) => s.setPlaybackRate);
+  const resetTime = usePlaybackStore((s) => s.resetTime);
+  const advanceTimeBy = usePlaybackStore((s) => s.advanceTimeBy);
 
-  return (
-    <div
-      style={{
-        background: 'rgba(0,0,0,0.35)',
-        borderRadius: '8px',
-        display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        color: 'white',
-        gap: '8px',
-        pointerEvents: 'auto',
-        padding: '8px',
-      }}
-    >
-      <button onClick={onTogglePlay}>{isPlaying ? 'Pause' : 'Play'}</button>
-      <button onClick={onStop}>Stop</button>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        Playback
-        <select value={playbackRate} onChange={(e) => onPlaybackRateChange(Number(e.target.value))}>
-          <option value={0.5}>0.5x</option>
-          <option value={1}>1x</option>
-          <option value={2}>2x</option>
-          <option value={4}>4x</option>
-          <option value={16}>16x</option>
-          <option value={256}>256x</option>
-        </select>
-      </label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4} }>
-        <span style={{ minWidth: '130px', textAlign: 'right' }}>{displayTimeLabel}</span>
-        <input
-            type="range"
-            min={0}
-            max={Math.max(0, timelineLength - 1)}
-            step={1}
-            value={clampedIndex}
-            onChange={(e) => onFrameIndexChange(Number(e.target.value))}
-            style={{ minWidth: '230px'}}
-        />
-      </div>
-      
-    </div>
-  );
-};
+  const frameIndex = useWindStore((s) => s.frameIndex);
+  const setFrameIndex = useWindStore((s) => s.setFrameIndex);
+  const framesByHeight = useWindStore((s) => s.framesByHeight);
+  const heightOrder = useWindStore((s) => s.heightOrder);
 
-type PlaybackControlsProps = {
-  timelineLength: number;
-  displayTimeLabel?: string;
-  initialPlaybackRate?: number;
-  frameIndex: number;
-  // Notify parent about state changes
-  onFrameIndexChange?: (index: number) => void;
-  onIsPlayingChange?: (isPlaying: boolean) => void;
-  onPlaybackRateChange?: (rate: number) => void;
-};
+  const timelineLength = useMemo(() => {
+    let maxLen = 0;
+    for (const h of heightOrder) {
+      const len = (framesByHeight[h] || []).length;
+      if (len > maxLen) maxLen = len;
+    }
+    return maxLen;
+  }, [framesByHeight, heightOrder]);
 
-export const PlaybackControls: React.FC<PlaybackControlsProps> = ({
-  timelineLength,
-  displayTimeLabel,
-  initialPlaybackRate = 1,
-  frameIndex,
-  onFrameIndexChange,
-  onIsPlayingChange,
-  onPlaybackRateChange,
-}) => {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [playbackRate, setPlaybackRate] = useState(initialPlaybackRate);
+  const currentFrame = useMemo(() => {
+    if (!heightOrder.length) return undefined;
+    const repHeight = (() => {
+      let maxLen = 0;
+      let rep = heightOrder[0];
+      for (const h of heightOrder) {
+        const len = (framesByHeight[h] || []).length;
+        if (len > maxLen) { maxLen = len; rep = h; }
+      }
+      return rep;
+    })();
+    const arr = framesByHeight[repHeight] || [];
+    const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, arr.length - 1));
+    return arr[idx];
+  }, [framesByHeight, heightOrder, frameIndex]);
+
+  const displayTimeLabel = useMemo(() => {
+    const raw = (currentFrame as any)?.timeString as string | undefined;
+    if (raw && raw.trim()) return raw;
+    const sec = (currentFrame as any)?.time as number | undefined;
+    if (typeof sec === 'number') {
+      try { return new Date(sec * 1000).toLocaleString(); } catch { /* noop */ }
+    }
+    return undefined;
+  }, [currentFrame]);
+
+  const rafRef = useRef(0);
+  const lastRef = useRef(performance.now());
 
   useEffect(() => {
-    let raf = 0;
-    let last = performance.now();
     const loop = () => {
       const now = performance.now();
-      const dt = (now - last) / 1000;
-      last = now;
+      const dt = (now - lastRef.current) / 1000;
+      lastRef.current = now;
       if (isPlaying && timelineLength > 0) {
         const framesPerSecond = 2 * playbackRate;
-        onFrameIndexChange?.((frameIndex + dt * framesPerSecond) % timelineLength);
+        setFrameIndex((frameIndex + dt * framesPerSecond) % timelineLength);
+        advanceTimeBy(dt * playbackRate);
       }
-      raf = requestAnimationFrame(loop);
+      rafRef.current = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [isPlaying, timelineLength, playbackRate, frameIndex, onFrameIndexChange]);
-
-  useEffect(() => {
-    onIsPlayingChange?.(isPlaying);
-  }, [isPlaying, onIsPlayingChange]);
-
-  useEffect(() => {
-    onPlaybackRateChange?.(playbackRate);
-  }, [playbackRate, onPlaybackRateChange]);
+    rafRef.current = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [isPlaying, playbackRate, frameIndex, setFrameIndex, timelineLength, advanceTimeBy]);
 
   return (
     <PlaybackControlsView
       isPlaying={isPlaying}
-      onTogglePlay={() => setIsPlaying((p) => !p)}
-      onStop={() => { setIsPlaying(false); onFrameIndexChange?.(0); }}
+      onTogglePlay={toggleIsPlaying}
+      onStop={() => { setIsPlaying(false); setFrameIndex(0); resetTime(); }}
       playbackRate={playbackRate}
       onPlaybackRateChange={setPlaybackRate}
       frameIndex={frameIndex}
-      onFrameIndexChange={onFrameIndexChange ?? (() => {})}
+      onFrameIndexChange={setFrameIndex}
       timelineLength={timelineLength}
       displayTimeLabel={displayTimeLabel}
     />

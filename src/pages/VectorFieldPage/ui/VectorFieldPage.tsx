@@ -1,7 +1,7 @@
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo } from 'react';
 
-import { useWindData, type FieldSampler, type WindFrame } from '@entities/WindData';
+import { useWindStore, type WindFrame } from '@entities/WindData';
 import { OrbitControls } from '@react-three/drei';
 import { Canvas } from '@react-three/fiber';
 import {
@@ -17,61 +17,38 @@ import { PlaybackControls } from '@widgets/PlaybackControls';
 import { createLayeredFieldSampler } from '@entities/FieldSampler/model/fieldSampler';
 
 export function VectorFieldPage() {
-  const {
-    framesByHeight,
-    heightOrder,
-    frameIndex,
-    setFrameIndex,
-    timelineInfo,
-    currentFrame,
-  } = useWindData();
-
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [time, setTime] = useState(0);
-  
-  useEffect(() => {
-    if (!isPlaying) return;
-
-    let animationFrameId: number;
-    let lastTime = performance.now();
-
-    const animate = () => {
-      const now = performance.now();
-      const deltaTime = (now - lastTime) / 1000; // delta time in seconds
-      lastTime = now;
-      
-      setTime(prevTime => prevTime + deltaTime);
-      
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    animationFrameId = requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [isPlaying]);
+  const framesByHeight = useWindStore((s) => s.framesByHeight);
+  const heightOrder = useWindStore((s) => s.heightOrder);
+  const frameIndex = useWindStore((s) => s.frameIndex);
 
   const layeredSampler = useMemo(() => {
     if (heightOrder.length && Object.keys(framesByHeight).length) {
       return createLayeredFieldSampler(framesByHeight, heightOrder, frameIndex);
     }
-  }, [framesByHeight, heightOrder, frameIndex, currentFrame]);
+  }, [framesByHeight, heightOrder, frameIndex]);
 
-  const displayTimeLabel = useMemo(() => {
-    // Prefer original string to avoid TZ shifts if present
-    const raw = (currentFrame as WindFrame)?.timeString as string | undefined;
-    if (raw && raw.trim()) return raw;
-    const sec = currentFrame?.time;
-    if (typeof sec === 'number') {
-      try {
-        return new Date(sec * 1000).toLocaleString();
-      } catch {
-        /* noop */
-      }
+  const timelineLength = useMemo(() => {
+    let maxLen = 0;
+    for (const h of heightOrder) {
+      const len = (framesByHeight[h] || []).length;
+      if (len > maxLen) maxLen = len;
     }
-    return `Frame ${Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineInfo.length - 1)) + 1}`;
-  }, [currentFrame, frameIndex, timelineInfo.length]);
+    return maxLen;
+  }, [framesByHeight, heightOrder]);
+
+  const currentFrame = useMemo(() => {
+    if (!heightOrder.length) return undefined;
+    let maxLen = 0; let repH = heightOrder[0];
+    for (const h of heightOrder) {
+      const len = (framesByHeight[h] || []).length;
+      if (len > maxLen) { maxLen = len; repH = h; }
+    }
+    const arr = framesByHeight[repH] || [];
+    const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, arr.length - 1));
+    return arr[idx] as WindFrame | undefined;
+  }, [framesByHeight, heightOrder, frameIndex]);
+
+  
 
   const statusText = useMemo(() => {
     let meanHS = 0;
@@ -79,7 +56,7 @@ export function VectorFieldPage() {
     let meanGustRatio = 0;
     if (heightOrder.length && Object.keys(framesByHeight).length) {
       // use same index policy as timeline (floor of frameIndex)
-      const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineInfo.length - 1));
+      const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineLength - 1));
       for (const h of heightOrder) {
         const arr = framesByHeight[h] || [];
         if (!arr.length) continue;
@@ -113,7 +90,7 @@ export function VectorFieldPage() {
     const danger = meanHS > 10; // lifting equipment risk threshold
     const dangerLabel = danger ? ' — DANGEROUS WIND (>10 m/s)' : '';
     return `Wind speed: ${meanHS.toFixed(1)} (m/s) — ${gustLabel}${dangerLabel}`;
-  }, [heightOrder, framesByHeight, frameIndex, timelineInfo.length, currentFrame]);
+  }, [heightOrder, framesByHeight, frameIndex, timelineLength, currentFrame]);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', height: '100vh', width: '100vw' }}>
@@ -144,8 +121,7 @@ export function VectorFieldPage() {
             <IfInSessionMode allow={'immersive-ar'}>
               <ObjectPlacement scale={1}>
                 <VectorField
-                  fieldSampler={layeredSampler as FieldSampler}
-                  currentTime={time}
+                  fieldSampler={layeredSampler}
                   heightSlices={heightOrder.length ? heightOrder : undefined}
                   statusText={statusText}
                 />
@@ -177,8 +153,7 @@ export function VectorFieldPage() {
             <IfInSessionMode deny={'immersive-ar'}>
               <ObjectPlacement>
                 <VectorField
-                  fieldSampler={layeredSampler as FieldSampler}
-                  currentTime={time}
+                  fieldSampler={layeredSampler}
                   heightSlices={heightOrder.length ? heightOrder : undefined}
                   statusText={statusText}
                 />
@@ -200,13 +175,7 @@ export function VectorFieldPage() {
           }}
         >
           <div style={{ pointerEvents: 'auto' }}>
-            <PlaybackControls
-              timelineLength={timelineInfo.length}
-              displayTimeLabel={displayTimeLabel}
-              frameIndex={frameIndex}
-              onFrameIndexChange={setFrameIndex}
-              onIsPlayingChange={setIsPlaying}
-            />
+            <PlaybackControls />
           </div>
 
         </div>

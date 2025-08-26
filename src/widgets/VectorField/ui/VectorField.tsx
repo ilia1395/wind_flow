@@ -12,13 +12,12 @@ import { StatusBillboard } from '@features/StatusBillboard';
 import type { FieldSampler } from '@entities/FieldSampler';
 // import { buildSpatialGrid } from '@entities/FieldSampler';
 import type { WindVector, PreparedVector } from '../types/types';
+import { usePlaybackStore } from '@features/Playback/model/playbackStore';
 
 type Props = {
   vectors?: WindVector[];
   numParticles?: number;
   fieldSampler?: FieldSampler; // optional procedural sampler
-  currentTime?: number; // seconds
-  isPlaying?: boolean; // control simulation integration
   heightSlices?: number[]; // meters
   statusText?: string; // overlay text
 };
@@ -41,8 +40,8 @@ const ParticleField: React.FC<{
       return { px: v.position[0], py: v.position[1], pz: v.position[2], vx, vy, vz, speed: v.speed };
     });
 
-    const gridCellSize = 1.5; // reserved for potential spatial grid usage
     // Spatial grid available if needed for neighbor queries
+    // const gridCellSize = 1.5;
     // const spatialGrid = preparedVectors.length ? buildSpatialGrid(preparedVectors, gridCellSize) : new Map<string, number[]>();
 
     const pos = new Float32Array(numParticles * 3);
@@ -342,11 +341,11 @@ export const VectorField: React.FC<Props> = ({
   vectors,
   numParticles = 2000,
   fieldSampler,
-  currentTime = 0,
-  isPlaying = true,
   heightSlices,
   statusText,
 }) => {
+  const currentTime = usePlaybackStore((s) => s.timeSeconds);
+  const isPlaying = usePlaybackStore((s) => s.isPlaying);
   // Derive world bounds from lidar heights: set Y span to data span (meters), X/Z proportional
   const derivedBounds: [number, number, number] = useMemo(() => {
     if (heightSlices && heightSlices.length > 0) {

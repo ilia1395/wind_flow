@@ -4,7 +4,42 @@ alwaysApply: false
 ---
 # Feature Sliced Design Best Practices: A Comprehensive Guide
 
-Feature-Sliced Design (FSD) is an architectural methodology for scaffolding front-end applications. Simply put, it's a compilation of rules and conventions on organizing code. The main purpose of this methodology is to make the project more understandable and stable in the face of ever-changing business requirements.
+Feature-Sliced Design (FSD) is an architectural methodology for scaffolding front-end applications. Simply put, it's a compilation of rules and conventions on organizing code. The main purpose of this methodology is to make the project more understandable and stable in the face of ever-changing business requirements. 
+
+## Concepts
+
+Layers
+Layers are standardized across all FSD projects. You don't have to use all of the layers, but their names are important. There are currently seven of them (from top to bottom):
+
+App — everything that makes the app run — routing, entrypoints, global styles, providers.
+Processes (deprecated) — complex inter-page scenarios.
+Pages — full pages or large parts of a page in nested routing.
+Widgets — large self-contained chunks of functionality or UI, usually delivering an entire use case.
+Features — reused implementations of entire product features, i.e. actions that bring business value to the user.
+Entities — business entities that the project works with, like user or product.
+Shared — reusable functionality, especially when it's detached from the specifics of the project/business, though not necessarily.
+
+warning
+Layers App and Shared, unlike other layers, do not have slices and are divided into segments directly.
+
+However, all other layers — Entities, Features, Widgets, and Pages, retain the structure in which you must first create slices, inside which you create the segments.
+
+Core principle! The trick with layers is that modules on one layer can only know about and import from modules from the layers strictly below.
+
+Slices
+Next up are slices, which partition the code by business domain. You're free to choose any names for them, and create as many as you wish. Slices make your codebase easier to navigate by keeping logically related modules close together.
+
+Slices cannot use other slices on the same layer, and that helps with high cohesion and low coupling.
+
+Segments
+Slices, as well as layers App and Shared, consist of segments, and segments group your code by its purpose. Segment names are not constrained by the standard, but there are several conventional names for the most common purposes:
+
+ui — everything related to UI display: UI components, date formatters, styles, etc.
+api — backend interactions: request functions, data types, mappers, etc.
+model — the data model: schemas, interfaces, stores, and business logic.
+lib — library code that other modules on this slice need.
+config — configuration files and feature flags.
+Usually these segments are enough for most layers, you would only create your own segments in Shared or App, but this is not a rule.
   
 ### Layers
 
