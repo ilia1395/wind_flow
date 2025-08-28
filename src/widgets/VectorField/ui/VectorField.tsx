@@ -9,7 +9,7 @@ import { HeightLabels } from '@features/HeightLabels';
 import { StatusBillboard } from '@features/StatusBillboard';
 
 
-import type { FieldSampler } from '@entities/FieldSampler';
+import type { FieldSampler, FieldSample } from '@entities/FieldSampler';
 // import { buildSpatialGrid } from '@entities/FieldSampler';
 import type { WindVector, PreparedVector } from '../types/types';
 import { usePlaybackStore } from '@features/Playback/model/playbackStore';
@@ -20,6 +20,8 @@ type Props = {
   fieldSampler?: FieldSampler; // optional procedural sampler
   heightSlices?: number[]; // meters
   statusText?: string; // overlay text
+  interpolatedVerticalBoost?: number; // multiply vy for interpolated samples
+  lifespanRangeSeconds?: [number, number];
 };
 
 const ParticleField: React.FC<{
@@ -29,7 +31,10 @@ const ParticleField: React.FC<{
   fieldSampler?: FieldSampler;
   currentTime: number;
   isPlaying: boolean;
-}> = ({ vectors, numParticles, bounds, fieldSampler, currentTime, isPlaying }) => {
+  heightSlices?: number[];
+  lifespanRangeSeconds?: [number, number];
+  interpolatedVerticalBoost?: number;
+}> = ({ vectors, numParticles, bounds, fieldSampler, currentTime, isPlaying, heightSlices, lifespanRangeSeconds, interpolatedVerticalBoost }) => {
   const { positions, colors, velocities } = useMemo(() => {
     // Precompute components from input vectors if provided
     const preparedVectors: PreparedVector[] = (vectors ?? []).map((v) => {
@@ -77,6 +82,26 @@ const ParticleField: React.FC<{
   const halfY = bounds[1];
   const halfZ = bounds[2];
 
+  // Map data heights to world Y coordinates for respawn biasing
+  const sliceYs = useMemo(() => {
+    if (!heightSlices || heightSlices.length === 0) return undefined as number[] | undefined;
+    const minH = Math.min(...heightSlices);
+    const maxH = Math.max(...heightSlices);
+    const span = Math.max(1e-6, maxH - minH);
+    const ys = [...heightSlices]
+      .sort((a, b) => a - b)
+      .map((h) => THREE.MathUtils.lerp(-halfY, halfY, (h - minH) / span));
+    return ys;
+  }, [heightSlices, halfY]);
+
+  const typicalGapY = useMemo(() => {
+    if (!sliceYs || sliceYs.length < 2) return halfY * 0.25;
+    const gaps: number[] = [];
+    for (let i = 0; i < sliceYs.length - 1; i += 1) gaps.push(Math.abs(sliceYs[i + 1] - sliceYs[i]));
+    const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+    return mean;
+  }, [sliceYs, halfY]);
+
   // Trails and speed-change tracking
   const pointsRef = useRef<THREE.Points>(null);
   const trailDotsRef = useRef<THREE.Points>(null);
@@ -85,25 +110,31 @@ const ParticleField: React.FC<{
   const TRAIL_LENGTH = 128;
   const trailPositions = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
   const trailColors    = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH * 3), [numParticles]);
+  const trailOpacities = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH).fill(0), [numParticles]);
   const prevSpeed      = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const curSpeed       = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const deltaSpeed     = useMemo(() => new Float32Array(numParticles), [numParticles]);
   const sizes          = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
+  const opacities      = useMemo(() => new Float32Array(numParticles).fill(1), [numParticles]);
   const trailDotSizes  = useMemo(() => new Float32Array(numParticles * TRAIL_LENGTH).fill(0), [numParticles]);
+  const lifeRemaining  = useMemo(() => new Float32Array(numParticles), [numParticles]);
 
   // Minimal custom shader to support per-particle size and oriented triangle sprites
   const particleVertex = `
     attribute float aSize;
+    attribute float aOpacity;
     attribute float aAngle;
     attribute vec3 color;
     varying vec3 vColor;
     varying float vAngle;
+    varying float vOpacity;
     uniform float uSize;             // global px scale
     uniform float uViewportHeight;   // pixels
     uniform float uFov;              // radians
     void main() {
       vColor = color;
       vAngle = aAngle;
+      vOpacity = aOpacity;
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       float projScale = uViewportHeight / (2.0 * tan(uFov * 0.5));
       float scaleFactor = length(modelMatrix[0].xyz);
@@ -115,6 +146,7 @@ const ParticleField: React.FC<{
   const particleFragment = `
     varying vec3 vColor;
     varying float vAngle;
+    varying float vOpacity;
     uniform float uOpacity;
     void main() {
       // oriented isosceles triangle sprite
@@ -127,7 +159,7 @@ const ParticleField: React.FC<{
       if (pr.y < -h || pr.y > h) discard;
       float halfWidth = (h - pr.y); // width shrinks toward apex (y=+h)
       if (abs(pr.x) > halfWidth) discard;
-      gl_FragColor = vec4(vColor, uOpacity);
+      gl_FragColor = vec4(vColor, uOpacity * vOpacity);
     }
   `;
   const particleUniforms = useMemo(() => ({
@@ -139,13 +171,16 @@ const ParticleField: React.FC<{
 
   const trailPointVertex = `
     attribute float aSize;
+    attribute float aOpacity;
     attribute vec3 color;
     varying vec3 vColor;
+    varying float vOpacity;
     uniform float uSize;
     uniform float uViewportHeight;
     uniform float uFov;
     void main() {
       vColor = color;
+      vOpacity = aOpacity;
       vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
       float projScale = uViewportHeight / (2.0 * tan(uFov * 0.5));
       float scaleFactor = length(modelMatrix[0].xyz);
@@ -156,12 +191,13 @@ const ParticleField: React.FC<{
   `;
   const trailPointFragment = `
     varying vec3 vColor;
+    varying float vOpacity;
     uniform float uOpacity;
     void main() {
       vec2 c = gl_PointCoord - vec2(0.5);
       float r = dot(c, c);
       if (r > 0.25) discard;
-      gl_FragColor = vec4(vColor, uOpacity);
+      gl_FragColor = vec4(vColor, uOpacity * vOpacity);
     }
   `;
   const trailPointUniforms = useMemo(() => ({
@@ -173,6 +209,13 @@ const ParticleField: React.FC<{
 
   // Per-particle orientation angle in XZ-plane
   const angles = useMemo(() => new Float32Array(numParticles), [numParticles]);
+
+  // Particle lifespan configuration
+  const lifeMin = Math.max(0.5, lifespanRangeSeconds?.[0] ?? 8);
+  const lifeMax = Math.max(lifeMin, lifespanRangeSeconds?.[1] ?? 12);
+
+  // Initialize lifespans on first frame
+  const initializedRef = useRef(false);
 
   useFrame((state, delta) => {
     const vh = state.size.height * (state.viewport.dpr || 1);
@@ -188,6 +231,12 @@ const ParticleField: React.FC<{
       velocities.fill(0);
       return;
     }
+    if (!initializedRef.current) {
+      for (let i = 0; i < numParticles; i += 1) {
+        lifeRemaining[i] = THREE.MathUtils.lerp(lifeMin, lifeMax, Math.random());
+      }
+      initializedRef.current = true;
+    }
     const pos = positions;
     const col = colors;
     const vel = velocities;
@@ -197,7 +246,7 @@ const ParticleField: React.FC<{
       let y = pos[i + 1];
       let z = pos[i + 2];
 
-      const s = fieldSampler ? fieldSampler(x, y, z, currentTime) : { vx: 0, vy: 0, vz: 0, speed: 0 };
+      const s: FieldSample = fieldSampler ? fieldSampler(x, y, z, currentTime) : { vx: 0, vy: 0, vz: 0, speed: 0, isInterpolated: false };
 
       const particleIndex = i / 3;
       curSpeed[particleIndex] = s.speed;
@@ -207,8 +256,11 @@ const ParticleField: React.FC<{
 
       const tau = 0.8;
       const k   = 1 / tau; 
+      const isInterpolated = Boolean(s.isInterpolated);
+      // Boost vertical velocity for interpolated samples
+      const vyTarget = isInterpolated ? s.vy * (interpolatedVerticalBoost ?? 1) : s.vy;
       vel[i+0] += (s.vx - vel[i+0]) * k * delta;
-      vel[i+1] += (s.vy - vel[i+1]) * k * delta;
+      vel[i+1] += (vyTarget - vel[i+1]) * k * delta;
       vel[i+2] += (s.vz - vel[i+2]) * k * delta;
 
       // integrate positions
@@ -216,35 +268,66 @@ const ParticleField: React.FC<{
       y += vel[i + 1] * delta;
       z += vel[i + 2] * delta;
 
-      // bounds + respawn
-      const out = x < -halfX || x > halfX || y < -halfY || y > halfY || z < -halfZ || z > halfZ;
-      if (out) {
-        x = THREE.MathUtils.randFloatSpread(halfX * 2);
-        y = THREE.MathUtils.randFloatSpread(halfY * 2);
-        z = THREE.MathUtils.randFloatSpread(halfZ * 2);
-        vel[i + 0] = 0;
-        vel[i + 1] = 0;
-        vel[i + 2] = 0;
-      }
+      // bounds wrapping (no lifetime changes on bounds)
+      if (x < -halfX) x += halfX * 2; else if (x > halfX) x -= halfX * 2;
+      if (y < -halfY) y += halfY * 2; else if (y > halfY) y -= halfY * 2;
+      if (z < -halfZ) z += halfZ * 2; else if (z > halfZ) z -= halfZ * 2;
 
       pos[i + 0] = x;
       pos[i + 1] = y;
       pos[i + 2] = z;
 
-      // base color from speed
-      const tSpeed = Math.max(0, Math.min(1, s.speed / 20));
-      const r = 0.4 + 0.6 * tSpeed;
-      const g = 0.9 - 0.7 * tSpeed;
-      const b = 1 - 0.8 * tSpeed;
-      col[i + 0] = r;
-      col[i + 1] = g;
-      col[i + 2] = b;
+      // base color: disable speed coloring for interpolated samples
+      if (isInterpolated) {
+        col[i + 0] = 0.8;
+        col[i + 1] = 0.8;
+        col[i + 2] = 0.8;
+      } else {
+        const tSpeed = Math.max(0, Math.min(1, s.speed / 20));
+        const r = 0.4 + 0.6 * tSpeed;
+        const g = 0.9 - 0.7 * tSpeed;
+        const b = 1 - 0.8 * tSpeed;
+        col[i + 0] = r;
+        col[i + 1] = g;
+        col[i + 2] = b;
+      }
 
       // orientation angle from velocity in XZ plane
       const ax = vel[i + 0];
       const az = vel[i + 2];
       const angle = (Math.abs(ax) + Math.abs(az)) > 1e-6 ? Math.atan2(az, ax) : 0.0;
       angles[particleIndex] = angle;
+
+      // per-particle opacity: fade interpolated samples
+      const isInterpolated2 = Boolean(s.isInterpolated);
+      opacities[particleIndex] = isInterpolated2 ? 0.1 : 1.0;
+
+      // particle lifespan and respawn
+      lifeRemaining[particleIndex] -= delta;
+      if (lifeRemaining[particleIndex] <= 0) {
+        pos[particleIndex * 3 + 0] = THREE.MathUtils.randFloatSpread(halfX * 2);
+        // Bias respawn Y toward measured heights
+        if (sliceYs && sliceYs.length > 0) {
+          // Amount factor particle between heights
+          const favorMeasured = Math.random() < 0.7;
+          if (favorMeasured) {
+            const idx = Math.floor(Math.random() * sliceYs.length);
+            const baseY = sliceYs[idx];
+            const band = Math.min(1.5, Math.max(0.2, typicalGapY * 0.2));
+            const jitter = THREE.MathUtils.randFloatSpread(band * 2);
+            pos[particleIndex * 3 + 1] = THREE.MathUtils.clamp(baseY + jitter, -halfY, halfY);
+          } else {
+            pos[particleIndex * 3 + 1] = THREE.MathUtils.randFloatSpread(halfY * 2);
+          }
+        } else {
+          pos[particleIndex * 3 + 1] = THREE.MathUtils.randFloatSpread(halfY * 2);
+        }
+        pos[particleIndex * 3 + 2] = THREE.MathUtils.randFloatSpread(halfZ * 2);
+        vel[i + 0] = 0;
+        vel[i + 1] = 0;
+        vel[i + 2] = 0;
+        lifeRemaining[particleIndex] = THREE.MathUtils.lerp(lifeMin, lifeMax, Math.random());
+      }
     }
 
     // Update trails: global decay then write current snapshot at head
@@ -253,6 +336,9 @@ const ParticleField: React.FC<{
 
     for (let c = 0; c < trailColors.length; c += 1) {
       trailColors[c] *= decay;
+    }
+    for (let a = 0; a < trailOpacities.length; a += 1) {
+      trailOpacities[a] *= decay;
     }
 
     const head = trailHeadRef.current;
@@ -267,15 +353,25 @@ const ParticleField: React.FC<{
       trailPositions[hi + 2] = pos[pi + 2];
 
       const sNow = curSpeed[i];
-      const intensity = 0.5 * Math.max(0.1, Math.min(1, sNow / 20)) + 0.5 * Math.max(0.1, Math.min(1, sNow / 20));
-      trailColors[hi + 0] = intensity;
-      trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
-      trailColors[hi + 2] = 0.8 * (1 - intensity);
+      const isInterpolatedTrail = opacities[i] < 1.0;
+      let intensity = 0.4;
+      if (isInterpolatedTrail) {
+        trailColors[hi + 0] = 0.8;
+        trailColors[hi + 1] = 0.8;
+        trailColors[hi + 2] = 0.8;
+        intensity = 0.4; // neutral intensity for interpolated trail
+      } else {
+        intensity = 0.5 * Math.max(0.1, Math.min(1, sNow / 20)) + 0.5 * Math.max(0.1, Math.min(1, sNow / 20));
+        trailColors[hi + 0] = intensity;
+        trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
+        trailColors[hi + 2] = 0.8 * (1 - intensity);
+      }
 
       const vertexIndex = head * numParticles + i;
       const baseSize = 0.075;         
       const boost    = 0.8 * intensity;
       trailDotSizes[vertexIndex] = baseSize + boost;
+      trailOpacities[vertexIndex] = opacities[i];
     }
     trailHeadRef.current = (head + 1) % TRAIL_LENGTH;
 
@@ -285,6 +381,7 @@ const ParticleField: React.FC<{
       (geometry.getAttribute('color')    as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('aSize')    as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('aAngle')   as THREE.BufferAttribute).needsUpdate = true;
+      (geometry.getAttribute('aOpacity') as THREE.BufferAttribute).needsUpdate = true;
     }
 
     if (trailDotsRef.current) {
@@ -292,6 +389,8 @@ const ParticleField: React.FC<{
       (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('color')    as THREE.BufferAttribute).needsUpdate = true;
       (geometry.getAttribute('aSize')    as THREE.BufferAttribute).needsUpdate = true;
+      const aOpacityAttr = geometry.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
+      if (aOpacityAttr) aOpacityAttr.needsUpdate = true;
     }
   });
 
@@ -303,6 +402,7 @@ const ParticleField: React.FC<{
           <bufferAttribute attach="attributes-position" args={[trailPositions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color"    args={[trailColors,    3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-aSize"    args={[trailDotSizes,  1]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-aOpacity" args={[trailOpacities, 1]} usage={THREE.DynamicDrawUsage} />
         </bufferGeometry>
         <shaderMaterial
           transparent
@@ -322,6 +422,7 @@ const ParticleField: React.FC<{
           <bufferAttribute attach="attributes-position" args={[positions, 3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-color"    args={[colors,    3]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-aSize"    args={[sizes,     1]} usage={THREE.DynamicDrawUsage} />
+          <bufferAttribute attach="attributes-aOpacity" args={[opacities, 1]} usage={THREE.DynamicDrawUsage} />
           <bufferAttribute attach="attributes-aAngle"   args={[angles,    1]} usage={THREE.DynamicDrawUsage} />
         </bufferGeometry>
         <shaderMaterial
@@ -343,6 +444,8 @@ export const VectorField: React.FC<Props> = ({
   fieldSampler,
   heightSlices,
   statusText,
+  interpolatedVerticalBoost,
+  lifespanRangeSeconds,
 }) => {
   const currentTime = usePlaybackStore((s) => s.timeSeconds);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
@@ -417,6 +520,9 @@ export const VectorField: React.FC<Props> = ({
         fieldSampler={fieldSampler}
         currentTime={currentTime}
         isPlaying={isPlaying}
+        heightSlices={heightSlices}
+        interpolatedVerticalBoost={interpolatedVerticalBoost}
+        lifespanRangeSeconds={lifespanRangeSeconds}
       />
     </>
   );

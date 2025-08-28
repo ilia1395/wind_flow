@@ -47,6 +47,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
         <select value={playbackRate} onChange={(e) => onPlaybackRateChange(Number(e.target.value))}>
           <option value={0.5}>0.5x</option>
           <option value={1}>1x</option>
+          <option value={16}>16x</option>
         </select>
       </label>
       <div style={{ display: 'flex', alignItems: 'center', gap: 4} }>
@@ -58,7 +59,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
             step={1}
             value={clampedIndex}
             onChange={(e) => onFrameIndexChange(Number(e.target.value))}
-            style={{ minWidth: '230px'}}
+            style={{ minWidth: '1200px'}}
         />
       </div>
       

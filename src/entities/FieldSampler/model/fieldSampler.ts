@@ -43,6 +43,7 @@ export function createLayeredFieldSampler(
     const idx = Math.max(0, Math.min(arr.length - 1, Math.floor(frameIndex) % arr.length));
     indexPerHeight.set(h, idx);
   }
+  const dataHeights = sortedHeights.filter((h) => indexPerHeight.has(h));
 
   function frameAtHeight(h: number): WindFrame | undefined {
     const idx = indexPerHeight.get(h);
@@ -71,24 +72,43 @@ export function createLayeredFieldSampler(
     // World units calibrated: 1 unit ~ 1 meter by deriving bounds from heights
     const yMeters = THREE.MathUtils.clamp(yWorld + minH + bounds[1], minH, maxH);
 
-    // Find surrounding heights
-    let lower = sortedHeights[0];
-    let upper = sortedHeights[sortedHeights.length - 1];
-    for (let i = 0; i < sortedHeights.length - 1; i += 1) {
-      const h0 = sortedHeights[i];
-      const h1 = sortedHeights[i + 1];
-      if (yMeters >= h0 && yMeters <= h1) {
-        lower = h0;
-        upper = h1;
-        break;
+    // Find surrounding heights using only measured heights; snap near exact heights
+    if (dataHeights.length === 0) return { vx: 0, vy: 0, vz: 0, speed: 0, turbulence: 0, isInterpolated: false };
+
+    let lower = dataHeights[0];
+    let upper = dataHeights[dataHeights.length - 1];
+    if (yMeters <= dataHeights[0]) {
+      lower = dataHeights[0];
+      upper = dataHeights[0];
+    } else if (yMeters >= dataHeights[dataHeights.length - 1]) {
+      lower = dataHeights[dataHeights.length - 1];
+      upper = dataHeights[dataHeights.length - 1];
+    } else {
+      for (let i = 0; i < dataHeights.length - 1; i += 1) {
+        const h0 = dataHeights[i];
+        const h1 = dataHeights[i + 1];
+        if (yMeters >= h0 && yMeters <= h1) {
+          lower = h0;
+          upper = h1;
+          break;
+        }
       }
     }
 
-    const f0 = frameAtHeight(lower) ?? frameAtHeight(sortedHeights[0]);
-    const f1 = frameAtHeight(upper) ?? frameAtHeight(sortedHeights[sortedHeights.length - 1]);
-    if (!f0 && !f1) return { vx: 0, vy: 0, vz: 0, speed: 0, turbulence: 0 };
+    // Snap band near measured heights to ensure tBlend = 0 in a small range
+    const nearest = Math.abs(yMeters - lower) <= Math.abs(upper - yMeters) ? lower : upper;
+    const gap = Math.max(1e-6, upper - lower);
+    const snapBand = Math.min(2, Math.max(0.5, 0.2 * gap)); // 0.5..2m band, scales with gap
+    if (Math.abs(yMeters - nearest) <= snapBand) {
+      lower = nearest;
+      upper = nearest;
+    }
 
-    const tBlend = lower === upper || !f1 ? 0 : (yMeters - lower) / (upper - lower);
+    const f0 = frameAtHeight(lower);
+    const f1 = frameAtHeight(upper);
+    if (!f0 && !f1) return { vx: 0, vy: 0, vz: 0, speed: 0, turbulence: 0, isInterpolated: false };
+
+    const tBlend = lower === upper ? 0 : (yMeters - lower) / (upper - lower);
     const angle0 = meteoDirDegToRadXZ(f0?.directionDeg ?? 0);
     const angle1 = meteoDirDegToRadXZ(f1?.directionDeg ?? f0?.directionDeg ?? 0);
 
@@ -110,6 +130,7 @@ export function createLayeredFieldSampler(
     const vz1 = Math.sin(angle1) * hs1;
     const vy1 = vs1;
 
+    // Linear interpolation between known data for upper and lower heights
     const vxBase = THREE.MathUtils.lerp(vx0, vx1, tBlend);
     const vyBase = THREE.MathUtils.lerp(vy0, vy1, tBlend);
     const vzBase = THREE.MathUtils.lerp(vz0, vz1, tBlend);
@@ -139,7 +160,9 @@ export function createLayeredFieldSampler(
     const meanHS = THREE.MathUtils.lerp(hs0, hs1, tBlend);
     const maxHS = THREE.MathUtils.lerp(f0?.horizSpeedMax ?? hs0, f1?.horizSpeedMax ?? hs1, tBlend);
     const g = Math.max(0, maxHS - meanHS);
-    const gr = meanHS > 0 ? g / meanHS : 0;
-    return { vx, vy, vz, speed, turbulence, gust: g, gustRatio: gr };
+    const hasF0 = Boolean(f0);
+    const hasF1 = Boolean(f1);
+    const isInterpolated = hasF0 && hasF1 && lower !== upper && tBlend > 0 && tBlend < 1;
+    return { vx, vy, vz, speed, turbulence, gust: g, isInterpolated };
   };
 }

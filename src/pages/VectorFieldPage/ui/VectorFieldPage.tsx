@@ -95,7 +95,7 @@ export function VectorFieldPage() {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', height: '100vh', width: '100vw' }}>
       <div style={{ position: 'relative', height: '95vh', gridColumn: '1 / -1' }}>
-        <button
+        {/* <button
         onClick={() => xr_store.enterAR()}
         style={{
             position: 'absolute',
@@ -114,7 +114,7 @@ export function VectorFieldPage() {
           }}
       >
         Enter AR
-      </button>
+      </button> */}
         <Canvas camera={{ position: [0, 0, 8192], fov: 1, near: 0.1, far: 500000 }}>
           <XR store={xr_store}>
             <OrbitControls />
