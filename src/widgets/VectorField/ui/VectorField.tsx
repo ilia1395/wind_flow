@@ -13,13 +13,12 @@ import type { FieldSampler, FieldSample } from '@entities/FieldSampler';
 // import { buildSpatialGrid } from '@entities/FieldSampler';
 import type { WindVector, PreparedVector } from '../types/types';
 import { usePlaybackStore } from '@features/Playback/model/playbackStore';
+import { useVectorFieldModel } from '../model/vectorFieldModel';
 
 type Props = {
   vectors?: WindVector[];
   numParticles?: number;
-  fieldSampler?: FieldSampler; // optional procedural sampler
-  heightSlices?: number[]; // meters
-  statusText?: string; // overlay text
+  // fieldSampler, heightSlices and statusText are provided by the internal model hook
   interpolatedVerticalBoost?: number; // multiply vy for interpolated samples
   lifespanRangeSeconds?: [number, number];
 };
@@ -441,12 +440,11 @@ const ParticleField: React.FC<{
 export const VectorField: React.FC<Props> = ({
   vectors,
   numParticles = 2000,
-  fieldSampler,
-  heightSlices,
-  statusText,
+  // provided via model hook
   interpolatedVerticalBoost,
   lifespanRangeSeconds,
 }) => {
+  const { fieldSampler, heightSlices, statusText } = useVectorFieldModel();
   const currentTime = usePlaybackStore((s) => s.timeSeconds);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   // Derive world bounds from lidar heights: set Y span to data span (meters), X/Z proportional
@@ -508,7 +506,7 @@ export const VectorField: React.FC<Props> = ({
       )}
 
       {/* 2D overlay status text */}
-      <StatusBillboard text={statusText} y={bounds[1] + 8} />
+      <StatusBillboard text={statusText} y={bounds[1] + 40} />
 
       {/* Direction labels */}
       <DirectionLabels bounds={bounds} floorY={floorY} labelMargin={labelMargin} />
