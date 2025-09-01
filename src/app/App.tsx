@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { VectorFieldPage } from '@pages/VectorFieldPage';
+import { DashboardPage } from '@pages/Dashboard';
 import { useWindStore } from '@entities/WindData';
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
     useWindStore.getState().loadByUrl();
   }, []);
 
-  return <VectorFieldPage />;
+  return < DashboardPage />
 }
 
 export default App;
