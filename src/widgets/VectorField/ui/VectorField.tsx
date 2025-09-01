@@ -6,8 +6,6 @@ import { useFrame } from '@react-three/fiber';
 
 import { DirectionLabels } from '@/features/DirectionLabels';
 import { HeightLabels } from '@/features/HeightLabels';
-import { StatusBillboard } from '@/features/StatusBillboard';
-
 
 import type { FieldSampler } from '@/entities/FieldSampler';
 import type { WindVector } from '../types/types';
@@ -288,9 +286,6 @@ export const VectorField: React.FC<Props> = () => {
       {heightSlices && heightSlices.length > 0 && (
         <HeightLabels heightSlices={heightSlices} bounds={bounds} edgeLabelMargin={edgeLabelMargin} />
       )}
-
-      {/* 2D overlay status text */}
-      <StatusBillboard text={statusText} y={bounds[1] + 40} />
 
       {/* Direction labels */}
       <DirectionLabels bounds={bounds} floorY={floorY} labelMargin={labelMargin} />
