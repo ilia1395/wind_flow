@@ -28,3 +28,4 @@ showcase
 *.njsproj
 *.sln
 *.sw?
+.cursor
