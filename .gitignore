@@ -11,12 +11,15 @@ node_modules
 dist
 dist-ssr
 *.local
+
+
+# Dev folders
+docs
 showcase
 
 # Editor directories and files
 .vscode/*
-.cursor/*
-docs/*
+cursor
 !.vscode/extensions.json
 .idea
 .DS_Store

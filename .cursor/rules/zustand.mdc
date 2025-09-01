@@ -1,5 +1,5 @@
 ---
-globs: *.ts,*.tsx
+description: Apply when you need to create state management
 alwaysApply: false
 ---
 # Zustand Best Practices
