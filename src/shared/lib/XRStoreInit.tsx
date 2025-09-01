@@ -6,7 +6,7 @@ import {
     XRHitTest,
     XRSpace
 } from '@react-three/xr';
-import { onResults} from '@shared/lib/hitTest/hitTestUtils'
+import { onResults} from '@/shared/lib/hitTest/hitTestUtils'
 
 export const xr_store = createXRStore({
     domOverlay: true,

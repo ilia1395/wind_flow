@@ -1,7 +1,9 @@
 import { Canvas } from '@react-three/fiber';
-import { VectorField } from '@widgets/VectorField';
-import { WindDataPanel } from '@widgets/WindDataPanel/ui/WindDataPanel';
-import { PlaybackControls } from '@widgets/PlaybackControls';
+import { VectorField } from '@/widgets/VectorField';
+import { WindDataPanel } from '@/widgets/WindDataPanel/ui/WindDataPanel';
+import { PlaybackControls } from '@/widgets/PlaybackControls'
+
+import { OrbitControls } from '@react-three/drei';
 
 export function DashboardPage() {
   return (
@@ -10,6 +12,7 @@ export function DashboardPage() {
         <div style={{ padding: '10px 12px', color: 'white', background: 'rgba(255,255,255,0.06)', borderTopLeftRadius: 8, borderTopRightRadius: 8, borderBottomLeftRadius: 0, borderBottomRightRadius: 0, border: '1px solid rgba(255,255,255,0.1)', borderBottom: 'none' }}>Vector Field</div>
         <div style={{ flex: 1, background: 'rgba(255,255,255,0.04)', borderBottomLeftRadius: 8, borderBottomRightRadius: 8, border: '1px solid rgba(255,255,255,0.1)', overflow: 'hidden' }}>
           <Canvas camera={{ position: [0, 0, 8192], fov: 1, near: 0.1, far: 500000 }}>
+            <OrbitControls />
             <VectorField />
           </Canvas>
         </div>

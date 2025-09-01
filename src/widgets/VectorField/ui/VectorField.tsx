@@ -4,14 +4,14 @@ import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 
-import { DirectionLabels } from '@features/DirectionLabels';
-import { HeightLabels } from '@features/HeightLabels';
-import { StatusBillboard } from '@features/StatusBillboard';
+import { DirectionLabels } from '@/features/DirectionLabels';
+import { HeightLabels } from '@/features/HeightLabels';
+import { StatusBillboard } from '@/features/StatusBillboard';
 
 
-import type { FieldSampler } from '@entities/FieldSampler';
+import type { FieldSampler } from '@/entities/FieldSampler';
 import type { WindVector } from '../types/types';
-import { usePlaybackStore } from '@features/Playback/model/playbackStore';
+import { usePlaybackStore } from '@/features/Playback/model/playbackStore';
 import { useVectorFieldModel } from '../model/vectorFieldModel';
 import { computeSliceYs } from '../lib/VectorFieldAppearance';
 import { createParticleSimulation, type ParticleSimulation } from '../model/particleSimulation';

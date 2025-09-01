@@ -1,7 +1,7 @@
 import React from 'react';
 import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
-import { TextPlane } from '@shared/ui/TextPlane';
+import { TextPlane } from '@/shared/ui/TextPlane';
 
 type Props = {
   heightSlices: number[];

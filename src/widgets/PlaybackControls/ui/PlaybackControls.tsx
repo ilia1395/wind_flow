@@ -1,8 +1,8 @@
 
 import React, { useEffect, useMemo, useRef } from 'react';
 import { PlaybackControlsView } from './PlaybackControlsView';
-import { usePlaybackStore } from '@features/Playback';
-import { useWindStore } from '@entities/WindData';
+import { usePlaybackStore } from '@/features/Playback';
+import { useWindStore } from '@/entities/WindData';
 
 // Intentionally no props; this is a widget-level controller that connects stores to the presentational view.
 
@@ -55,30 +55,6 @@ export const PlaybackControls: React.FC = () => {
     return undefined;
   }, [currentFrame]);
 
-  const currentSpeedLabel = useMemo(() => {
-    if (!heightOrder.length || timelineLength <= 0) return undefined;
-    let maxLen = 0;
-    for (const h of heightOrder) {
-      const len = (framesByHeight[h] || []).length;
-      if (len > maxLen) maxLen = len;
-    }
-    if (maxLen === 0) return undefined;
-    const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, maxLen - 1));
-    let sum = 0;
-    let cnt = 0;
-    for (const h of heightOrder) {
-      const arr = framesByHeight[h] || [];
-      if (!arr.length) continue;
-      const f = arr[Math.min(idx, arr.length - 1)];
-      if (!f) continue;
-      sum += (f.horizSpeedMean ?? 0);
-      cnt += 1;
-    }
-    if (cnt === 0) return undefined;
-    const avg = sum / cnt;
-    return `Avg speed: ${avg.toFixed(1)} m/s`;
-  }, [framesByHeight, heightOrder, frameIndex, timelineLength]);
-
   const rafRef = useRef(0);
   const lastRef = useRef(performance.now());
 
@@ -109,7 +85,6 @@ export const PlaybackControls: React.FC = () => {
       onFrameIndexChange={setFrameIndex}
       timelineLength={timelineLength}
       displayTimeLabel={displayTimeLabel}
-      currentSpeedLabel={currentSpeedLabel}
     />
   );
 };

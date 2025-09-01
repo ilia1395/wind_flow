@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { DashboardPage } from '@pages/Dashboard';
-import { useWindStore } from '@entities/WindData';
+import { DashboardPage } from '@/pages/Dashboard';
+import { useWindStore } from '@/entities/WindData';
 
 function App() {
   useEffect(() => {

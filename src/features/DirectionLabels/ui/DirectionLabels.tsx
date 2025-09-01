@@ -1,5 +1,5 @@
 import React from 'react';
-import { TextPlane } from '@shared/ui/TextPlane';
+import { TextPlane } from '@/shared/ui/TextPlane';
 
 type Props = {
   bounds: [number, number, number];

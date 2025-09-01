@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { useXR, useXRInputSourceEvent, useXRHitTest } from '@react-three/xr';
-import { hitTestMatrices, onResults } from '@shared/lib/hitTest/hitTestUtils';
-import { Reticle } from '@shared/ui/reticle';
+import { hitTestMatrices, onResults } from '@/shared/lib/hitTest/hitTestUtils';
+import { Reticle } from '@/shared/ui/reticle';
 
 type AnchorPose = { position: THREE.Vector3; quaternion: THREE.Quaternion };
 

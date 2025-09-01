@@ -1,1 +1,1 @@
-export { VectorFieldPage } from './ui/VectorFieldPage';
+export { DashboardXRPage } from './ui/DashboardXRPage';

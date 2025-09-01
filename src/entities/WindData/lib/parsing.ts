@@ -1,4 +1,4 @@
-import { parseMastTimestampSeconds, sanitizeAngleDeg, sanitizeNumber } from '@shared/lib/math/parsing';
+import { parseMastTimestampSeconds, sanitizeAngleDeg, sanitizeNumber } from '@/shared/lib/math/parsing';
 import type { FramesByHeight, WindFrame } from '../types/types';
 
 // Parse the provided mast CSV with columns repeated per height.

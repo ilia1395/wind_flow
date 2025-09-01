@@ -11,7 +11,6 @@ type PlaybackControlsViewProps = {
   onFrameIndexChange: (index: number) => void;
   timelineLength: number;
   displayTimeLabel?: string;
-  currentSpeedLabel?: string;
 };
 
 export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
@@ -24,7 +23,6 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   onFrameIndexChange,
   timelineLength,
   displayTimeLabel,
-  currentSpeedLabel,
 }) => {
   const clampedIndex = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineLength - 1));
 
@@ -34,42 +32,39 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
         background: 'rgba(0,0,0,0.35)',
         borderRadius: '8px',
         display: 'flex',
-        alignItems: 'center',
-        flexWrap: 'wrap',
+        flexDirection: 'column',
+        alignItems: 'stretch',
         color: 'white',
         gap: '8px',
         pointerEvents: 'auto',
         padding: '8px',
+        width: '100%'
       }}
     >
-      <button onClick={onTogglePlay}>{isPlaying ? 'Pause' : 'Play'}</button>
-      <button onClick={onStop}>Stop</button>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        Playback
-        <select value={playbackRate} onChange={(e) => onPlaybackRateChange(Number(e.target.value))}>
-          <option value={0.5}>0.5x</option>
-          <option value={1}>1x</option>
-          <option value={16}>16x</option>
-        </select>
-      </label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8} }>
-        <span style={{ minWidth: '140px', textAlign: 'right' }}>{displayTimeLabel}</span>
-        {currentSpeedLabel && (
-          <span style={{ minWidth: '120px', textAlign: 'left', opacity: 0.9 }}>
-            {currentSpeedLabel}
-          </span>
-        )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, width: '100%' }}>
+        <span style={{ textAlign: 'center', minWidth: 0 }}>{displayTimeLabel}</span>
+        <button onClick={onTogglePlay}>{isPlaying ? 'Pause' : 'Play'}</button>
+        <button onClick={onStop}>Stop</button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          Playback
+          <select value={playbackRate} onChange={(e) => onPlaybackRateChange(Number(e.target.value))}>
+            <option value={0.5}>0.5x</option>
+            <option value={1}>1x</option>
+            <option value={16}>16x</option>
+          </select>
+        </label>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
         <input
-            type="range"
-            min={0}
-            max={Math.max(0, timelineLength - 1)}
-            step={1}
-            value={clampedIndex}
-            onChange={(e) => onFrameIndexChange(Number(e.target.value))}
-            style={{ minWidth: '1200px'}}
+          type="range"
+          min={0}
+          max={Math.max(0, timelineLength - 1)}
+          step={1}
+          value={clampedIndex}
+          onChange={(e) => onFrameIndexChange(Number(e.target.value))}
+          style={{ width: '100%' }}
         />
       </div>
-      
     </div>
   );
 };

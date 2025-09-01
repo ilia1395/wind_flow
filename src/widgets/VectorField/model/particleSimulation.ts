@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { FieldSampler, FieldSample } from '@entities/FieldSampler';
+import type { FieldSampler, FieldSample } from '@/entities/FieldSampler';
 
 export type VectorFieldBounds = [number, number, number];
 

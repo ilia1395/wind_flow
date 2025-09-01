@@ -7,11 +7,11 @@ import {
   XRDomOverlay,
 } from '@react-three/xr';
 
-import { xr_store } from '@shared/lib/XRStoreInit';
-import { VectorField } from '@widgets/VectorField';
-import { ObjectPlacement } from '@features/ObjectPlacement';
-import { PlaybackControls } from '@widgets/PlaybackControls';
-import { WindDataPanel } from '@widgets/WindDataPanel/ui/WindDataPanel';
+import { xr_store } from '@/shared/lib/XRStoreInit';
+import { VectorField } from '@/widgets/VectorField';
+import { ObjectPlacement } from '@/features/ObjectPlacement';
+import { PlaybackControls } from '@/widgets/PlaybackControls';
+import { WindDataPanel } from '@/widgets/WindDataPanel/ui/WindDataPanel';
 
 export function DashboardXRPage() {
 

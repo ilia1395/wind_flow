@@ -1,32 +1,10 @@
 
 import * as THREE from 'three';
-import { meteoDirDegToRadXZ } from '@shared/lib/math/meteoData';
-import { hashNoise } from '@shared/lib/math/simulation';
+import { meteoDirDegToRadXZ } from '@/shared/lib/math/meteoData';
+import { hashNoise } from '@/shared/lib/math/simulation';
 import type { FieldSampler } from '../types/types';
-import type { FramesByHeight, WindFrame } from '@entities/WindData/types/types';
+import type { FramesByHeight, WindFrame } from '@/entities/WindData/types/types';
 
-
-// spatial grid
-export function buildSpatialGrid(
-  vectors: Array<{ px: number; py: number; pz: number; vx: number; vy: number; vz: number; speed: number }>,
-  cellSize: number,
-): Map<string, number[]>  {
-  const grid = new Map<string, number[]>();
-  for (let i = 0; i < vectors.length; i += 1) {
-    const v = vectors[i];
-    const cx = Math.floor(v.px / cellSize);
-    const cy = Math.floor(v.py / cellSize);
-    const cz = Math.floor(v.pz / cellSize);
-    const key = `${cx}|${cy}|${cz}`;
-    let bucket = grid.get(key);
-    if (!bucket) {
-      bucket = [];
-      grid.set(key, bucket);
-    }
-    bucket.push(i);
-  }
-  return grid;
-}
 
 // Create layered sampler that blends between heights based on Y.
 export function createLayeredFieldSampler(

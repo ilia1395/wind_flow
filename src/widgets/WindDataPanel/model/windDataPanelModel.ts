@@ -1,4 +1,4 @@
-import { useWindStore } from '@entities/WindData';
+import { useWindStore } from '@/entities/WindData';
 import { useMemo } from 'react';
 import { computeWindMetrics, type WindMetrics } from '../lib/metrics';
 

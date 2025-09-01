@@ -1,4 +1,4 @@
-import type { FramesByHeight } from '@entities/WindData';
+import type { FramesByHeight } from '@/entities/WindData';
 
 export type DirStats = {
   meanSpeed: number;

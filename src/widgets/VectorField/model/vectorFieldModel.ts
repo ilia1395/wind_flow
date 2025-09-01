@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import { useWindStore, type WindFrame } from '@entities/WindData';
-import { createLayeredFieldSampler } from '@entities/FieldSampler';
+import { useWindStore, type WindFrame } from '@/entities/WindData';
+import { createLayeredFieldSampler } from '@/entities/FieldSampler';
 
 export function useVectorFieldModel() {
   const framesByHeight = useWindStore((s) => s.framesByHeight);
