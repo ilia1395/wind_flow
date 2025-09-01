@@ -14,7 +14,7 @@ export const WindDataPanel: React.FC = () => {
   const [mode, setMode] = useState<Mode>('realtime');
 
   return (
-    <Card className="w-full max-w-md bg-background/60 backdrop-blur border-border/50">
+    <Card className="w-full sm:max-w-md bg-background/60 backdrop-blur border-border/50">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Wind Data</CardTitle>
         <Tabs value={mode} onValueChange={(v) => setMode(v as Mode)}>
