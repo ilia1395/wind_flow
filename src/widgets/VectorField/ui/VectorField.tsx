@@ -231,7 +231,7 @@ const ParticleField: React.FC<{
 };
 
 export const VectorField: React.FC<Props> = () => {
-  const { fieldSampler, heightSlices, statusText } = useVectorFieldModel();
+  const { fieldSampler, heightSlices } = useVectorFieldModel();
   const currentTime = usePlaybackStore((s) => s.timeSeconds);
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   // Derive world bounds from lidar heights: set Y span to data span (meters), X/Z proportional

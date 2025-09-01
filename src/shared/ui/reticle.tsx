@@ -3,7 +3,7 @@ import { forwardRef, memo, useRef } from 'react'
 import * as THREE from 'three'
 import { Mesh } from 'three'
 import { BufferGeometryUtils } from 'three/examples/jsm/Addons.js'
-import { hitTestMatrices } from '@shared/lib/hitTest/hitTestUtils'
+import { hitTestMatrices } from '@/shared/lib/hitTest/hitTestUtils'
 import { useState } from 'react'
 
 const ReticleMesh = forwardRef<Mesh, ThreeElements['mesh']>((props, ref) => {

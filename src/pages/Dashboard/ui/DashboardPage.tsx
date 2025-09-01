@@ -5,6 +5,7 @@ import { PlaybackControls } from '@/widgets/PlaybackControls'
 
 import { OrbitControls } from '@react-three/drei';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
+import { ThemeToggle } from '@/shared/components/ui/theme-toggle';
 
 export function DashboardPage() {
   return (
@@ -25,7 +26,10 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      <div className="[grid-column:2/3] [grid-row:1/3] min-h-0 flex flex-col">
+      <div className="[grid-column:2/3] [grid-row:1/3] min-h-0 flex flex-col gap-3">
+        {/* <div className="flex items-center justify-end">
+          <ThemeToggle />
+        </div> */}
         <div className="max-h-[calc(100dvh-1rem)] overflow-y-auto pr-1">
           <WindDataPanel />
         </div>

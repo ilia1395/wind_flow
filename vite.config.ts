@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), viteBasicSslPlugin(), tailwindcss()],
   server: {
     host: true,
-    https: true,
+    https: {},
   },
   resolve: {
     alias: {
