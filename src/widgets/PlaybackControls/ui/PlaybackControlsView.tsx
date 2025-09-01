@@ -11,6 +11,7 @@ type PlaybackControlsViewProps = {
   onFrameIndexChange: (index: number) => void;
   timelineLength: number;
   displayTimeLabel?: string;
+  currentSpeedLabel?: string;
 };
 
 export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
@@ -23,6 +24,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   onFrameIndexChange,
   timelineLength,
   displayTimeLabel,
+  currentSpeedLabel,
 }) => {
   const clampedIndex = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, timelineLength - 1));
 
@@ -50,8 +52,13 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
           <option value={16}>16x</option>
         </select>
       </label>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4} }>
-        <span style={{ minWidth: '130px', textAlign: 'right' }}>{displayTimeLabel}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8} }>
+        <span style={{ minWidth: '140px', textAlign: 'right' }}>{displayTimeLabel}</span>
+        {currentSpeedLabel && (
+          <span style={{ minWidth: '120px', textAlign: 'left', opacity: 0.9 }}>
+            {currentSpeedLabel}
+          </span>
+        )}
         <input
             type="range"
             min={0}
