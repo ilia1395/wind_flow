@@ -13,7 +13,7 @@ import { ObjectPlacement } from '@features/ObjectPlacement';
 import { PlaybackControls } from '@widgets/PlaybackControls';
 import { WindDataPanel } from '@widgets/WindDataPanel/ui/WindDataPanel';
 
-export function VectorFieldPage() {
+export function DashboardXRPage() {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', height: '100vh', width: '100vw', gap: '12px', padding: '12px', boxSizing: 'border-box' }}>
