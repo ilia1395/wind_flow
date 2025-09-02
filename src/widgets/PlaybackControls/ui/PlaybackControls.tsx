@@ -19,6 +19,9 @@ export const PlaybackControls: React.FC = () => {
   const setFrameIndex = useWindStore((s) => s.setFrameIndex);
   const framesByHeight = useWindStore((s) => s.framesByHeight);
   const heightOrder = useWindStore((s) => s.heightOrder);
+  const storeRepHeight = useWindStore((s) => s.repHeight);
+  const storeIntensities = useWindStore((s) => s.timelineIntensities);
+  const storeSpeeds = useWindStore((s) => s.timelineSpeeds);
 
   const timelineLength = useMemo(() => {
     let maxLen = 0;
@@ -29,21 +32,15 @@ export const PlaybackControls: React.FC = () => {
     return maxLen;
   }, [framesByHeight, heightOrder]);
 
+  const representativeHeight = useMemo(() => storeRepHeight, [storeRepHeight]);
+  const intensities = useMemo(() => storeIntensities, [storeIntensities]);
+
   const currentFrame = useMemo(() => {
-    if (!heightOrder.length) return undefined;
-    const repHeight = (() => {
-      let maxLen = 0;
-      let rep = heightOrder[0];
-      for (const h of heightOrder) {
-        const len = (framesByHeight[h] || []).length;
-        if (len > maxLen) { maxLen = len; rep = h; }
-      }
-      return rep;
-    })();
-    const arr = framesByHeight[repHeight] || [];
+    if (!representativeHeight) return undefined;
+    const arr = framesByHeight[representativeHeight] || [];
     const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, arr.length - 1));
     return arr[idx];
-  }, [framesByHeight, heightOrder, frameIndex]);
+  }, [framesByHeight, representativeHeight, frameIndex]);
 
   const displayTimeLabel = useMemo(() => {
     const raw = (currentFrame as any)?.timeString as string | undefined;
@@ -57,22 +54,36 @@ export const PlaybackControls: React.FC = () => {
 
   const rafRef = useRef(0);
   const lastRef = useRef(performance.now());
+  const isPlayingRef = useRef(isPlaying);
+  const playbackRateRef = useRef(playbackRate);
+  const timelineLengthRef = useRef(timelineLength);
+  const frameIndexRef = useRef(frameIndex);
+
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { playbackRateRef.current = playbackRate; }, [playbackRate]);
+  useEffect(() => { timelineLengthRef.current = timelineLength; }, [timelineLength]);
+  useEffect(() => { frameIndexRef.current = frameIndex; }, [frameIndex]);
 
   useEffect(() => {
     const loop = () => {
       const now = performance.now();
       const dt = (now - lastRef.current) / 1000;
       lastRef.current = now;
-      if (isPlaying && timelineLength > 0) {
-        const framesPerSecond = 2 * playbackRate;
-        setFrameIndex((frameIndex + dt * framesPerSecond) % timelineLength);
-        advanceTimeBy(dt * playbackRate);
+      const playing = isPlayingRef.current;
+      const len = timelineLengthRef.current;
+      const rate = playbackRateRef.current;
+      if (playing && len > 0) {
+        const framesPerSecond = 2 * rate;
+        const nextIdx = (frameIndexRef.current + dt * framesPerSecond) % len;
+        frameIndexRef.current = nextIdx;
+        setFrameIndex(nextIdx);
+        advanceTimeBy(dt * rate);
       }
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isPlaying, playbackRate, frameIndex, setFrameIndex, timelineLength, advanceTimeBy]);
+  }, [setFrameIndex, advanceTimeBy]);
 
   return (
     <PlaybackControlsView
@@ -85,6 +96,8 @@ export const PlaybackControls: React.FC = () => {
       onFrameIndexChange={setFrameIndex}
       timelineLength={timelineLength}
       displayTimeLabel={displayTimeLabel}
+      intensities={intensities}
+      speeds={storeSpeeds}
     />
   );
 };

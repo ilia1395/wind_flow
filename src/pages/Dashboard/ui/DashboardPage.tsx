@@ -22,7 +22,7 @@ export function DashboardPage() {
                 <VectorField />
               </Canvas>
             </div>
-            <div className="border-t border-border/50 h-40">
+            <div className="border-t border-border/50 h-50">
               <div className="p-3">
                 <PlaybackControls />
               </div>

@@ -12,10 +12,17 @@ interface WindState {
   status: "idle" | "loading" | "ready" | "error";
   error: string | null;
   
+  // precomputed timeline data
+  repHeight?: number;
+  timelineIntensities: number[];
+  timelineBars: number; // how many bars to quantize the timeline into
+  timelineSpeeds: number[]; // avg speed per bucket for coloring
+  
   setFrameIndex: (i: number) => void;
   loadByUrl: (url?: string) => Promise<void>;
   loadFromText: (text: string) => void;
   setFramesByHeight: (framesByHeight: FramesByHeight) => void;
+  setTimelineBars: (bars: number) => void;
 
   getCurrentFrame: () => WindFrame | undefined;
   getTimelineInfo: () => { length: number; repHeight: number};
@@ -31,6 +38,10 @@ export const useWindStore = create<WindState>((set, get) => ({
   frameIndex: 0,
   status: "idle",
   error: null,
+  repHeight: undefined,
+  timelineIntensities: [],
+  timelineBars: 128,
+  timelineSpeeds: [],
 
   setFrameIndex: (i) => set({ frameIndex: i }),
 
@@ -39,7 +50,9 @@ export const useWindStore = create<WindState>((set, get) => ({
       set({ status: "loading", error: null });
       const text = await fetchCsvText(url);
       const { framesByHeight, heights } = parseMastCsvByHeights(text);
-      set({ framesByHeight, heightOrder: heights, frameIndex: 0, status: "ready" });
+      const { timelineBars } = get();
+      const { repHeight, intensities, speeds } = computeTimelineDerived(framesByHeight, heights, timelineBars);
+      set({ framesByHeight, heightOrder: heights, frameIndex: 0, repHeight, timelineIntensities: intensities, timelineSpeeds: speeds, status: "ready" });
     } catch (e: any) {
       set({ status: "error", error: e?.message ?? String(e) });
     }
@@ -49,14 +62,26 @@ export const useWindStore = create<WindState>((set, get) => ({
     try {
       set({ status: "loading", error: null });
       const { framesByHeight, heights } = parseMastCsvByHeights(text);
-      set({ framesByHeight, heightOrder: heights, frameIndex: 0, status: "ready" });
+      const { timelineBars } = get();
+      const { repHeight, intensities, speeds } = computeTimelineDerived(framesByHeight, heights, timelineBars);
+      set({ framesByHeight, heightOrder: heights, frameIndex: 0, repHeight, timelineIntensities: intensities, timelineSpeeds: speeds, status: "ready" });
     } catch (e: any) {
       set({ status: "error", error: e?.message ?? String(e) });
     }
   },
 
   setFramesByHeight: (framesByHeight: FramesByHeight) => {
-    set({ framesByHeight });
+    const { heightOrder } = get();
+    const { timelineBars } = get();
+    const { repHeight, intensities, speeds } = computeTimelineDerived(framesByHeight, heightOrder, timelineBars);
+    set({ framesByHeight, repHeight, timelineIntensities: intensities, timelineSpeeds: speeds });
+  },
+
+  setTimelineBars: (bars: number) => {
+    const safe = Math.max(8, Math.min(2048, Math.floor(bars)));
+    const { framesByHeight, heightOrder } = get();
+    const { repHeight, intensities, speeds } = computeTimelineDerived(framesByHeight, heightOrder, safe);
+    set({ timelineBars: safe, repHeight, timelineIntensities: intensities, timelineSpeeds: speeds });
   },
 
   getCurrentFrame: () => {
@@ -105,3 +130,59 @@ export const useWindStore = create<WindState>((set, get) => ({
     return framesByHeight[h] || [];
   },
 }));
+
+function computeTimelineDerived(framesByHeight: FramesByHeight, heightOrder: number[], quantBars = 512): { repHeight: number | undefined; intensities: number[]; speeds: number[] } {
+  if (!heightOrder || heightOrder.length === 0) return { repHeight: undefined, intensities: [], speeds: [] };
+  let maxLen = 0;
+  let rep = heightOrder[0];
+  for (const h of heightOrder) {
+    const len = (framesByHeight[h] || []).length;
+    if (len > maxLen) { maxLen = len; rep = h; }
+  }
+  const arr = framesByHeight[rep] || [];
+  if (!arr.length) return { repHeight: rep, intensities: [], speeds: [] };
+  const speeds = arr.map((f) => {
+    const v = Number(f?.horizSpeedMean ?? 0);
+    return Number.isFinite(v) ? Math.max(0, v) : 0;
+  });
+  let minPos = Infinity;
+  let maxVal = 0;
+  for (const v of speeds) {
+    if (v > 0 && v < minPos) minPos = v;
+    if (v > maxVal) maxVal = v;
+  }
+  if (!Number.isFinite(minPos)) minPos = 0.1;
+  if (maxVal <= 0) return { repHeight: rep, intensities: speeds.map(() => 0), speeds };
+  const logMin = Math.log(minPos);
+  const logMax = Math.log(Math.max(maxVal, minPos + 1e-6));
+  const denom = Math.max(1e-6, logMax - logMin);
+  const base = speeds.map((v) => {
+    if (v <= 0) return 0;
+    const t = (Math.log(v) - logMin) / denom;
+    return Math.min(1, Math.max(0, t));
+  });
+  const bars = Math.max(1, Math.floor(quantBars));
+  if (bars >= base.length) {
+    // bucket speeds to same resolution even if not aggregating intensities
+    const sp = speeds.slice(0);
+    return { repHeight: rep, intensities: base, speeds: sp };
+  }
+  const bucketSize = base.length / bars;
+  const quantized: number[] = new Array(bars).fill(0);
+  const speedBuckets: number[] = new Array(bars).fill(0);
+  for (let i = 0; i < bars; i += 1) {
+    const start = Math.floor(i * bucketSize);
+    const end = Math.floor((i + 1) * bucketSize);
+    let maxIntensity = 0;
+    let maxSpeed = 0;
+    for (let j = start; j < end && j < base.length; j += 1) {
+      const bi = base[j];
+      if (bi > maxIntensity) maxIntensity = bi;
+      const sj = speeds[j] ?? 0;
+      if (sj > maxSpeed) maxSpeed = sj;
+    }
+    quantized[i] = maxIntensity;
+    speedBuckets[i] = maxSpeed;
+  }
+  return { repHeight: rep, intensities: quantized, speeds: speedBuckets };
+}
