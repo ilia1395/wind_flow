@@ -31,7 +31,7 @@ type VectorFieldActions = {
 export type VectorFieldStore = VectorFieldConfig & VectorFieldActions;
 
 export const useVectorFieldStore = create<VectorFieldStore>((set) => ({
-  numParticles: 2000,
+  numParticles: 1000,
   trailLength: 128,
   lifespan: [10, 14],
   interpolatedVyBoost: 2.0,

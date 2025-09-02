@@ -29,6 +29,7 @@ type PlaybackControlsViewProps = {
   displayTimeLabel?: string;
   intensities?: number[];
   speeds?: number[];
+  // removed min/max band rendering; keep props out
 };
 
 export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
@@ -50,7 +51,6 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   const barCount = Math.max(1, intensities.length);
   const barWidth = CHART_WIDTH / barCount;
   const selectedBarIndex = Math.min(barCount - 1, Math.max(0, Math.floor((clampedIndex / Math.max(1, timelineLength - 1)) * barCount)));
-
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border bg-card/60 p-2 text-card-foreground backdrop-blur">
       <div className="relative w-full" style={{ height: CHART_HEIGHT }}>
@@ -61,6 +61,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           preserveAspectRatio="none"
         >
+          {/* Simplified: only average bars */}
           {intensities.map((t, i) => {
             const h = Math.max(2, t * CHART_HEIGHT);
             const y = CHART_HEIGHT - h;
@@ -79,15 +80,6 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
               />
             );
           })}
-          <line
-            x1={selectedBarIndex * barWidth + barWidth / 2}
-            x2={selectedBarIndex * barWidth + barWidth / 2}
-            y1={0}
-            y2={CHART_HEIGHT}
-            stroke={'hsl(var(--primary))'}
-            strokeWidth={2}
-            opacity={0.9}
-          />
         </svg>
         <input
           aria-label="Timeline"

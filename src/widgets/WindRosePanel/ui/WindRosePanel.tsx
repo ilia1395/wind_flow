@@ -31,7 +31,7 @@ export const WindRosePanel: React.FC = () => {
         <CardTitle className="text-base">Wind Rose</CardTitle>
         <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodTab)}>
           <TabsList className="mt-2">
-            <TabsTrigger value="2min">2 min</TabsTrigger>
+            {/* <TabsTrigger value="2min">2 min</TabsTrigger> */}
             <TabsTrigger value="10min">10 min</TabsTrigger>
             <TabsTrigger value="1d">1 d</TabsTrigger>
             <TabsTrigger value="1month">1 month</TabsTrigger>

@@ -40,7 +40,7 @@ export const useWindStore = create<WindState>((set, get) => ({
   error: null,
   repHeight: undefined,
   timelineIntensities: [],
-  timelineBars: 128,
+  timelineBars: 256,
   timelineSpeeds: [],
 
   setFrameIndex: (i) => set({ frameIndex: i }),
@@ -131,7 +131,11 @@ export const useWindStore = create<WindState>((set, get) => ({
   },
 }));
 
-function computeTimelineDerived(framesByHeight: FramesByHeight, heightOrder: number[], quantBars = 512): { repHeight: number | undefined; intensities: number[]; speeds: number[] } {
+function computeTimelineDerived(
+  framesByHeight: FramesByHeight,
+  heightOrder: number[],
+  quantBars = 128
+): { repHeight: number | undefined; intensities: number[]; speeds: number[] } {
   if (!heightOrder || heightOrder.length === 0) return { repHeight: undefined, intensities: [], speeds: [] };
   let maxLen = 0;
   let rep = heightOrder[0];
@@ -163,7 +167,6 @@ function computeTimelineDerived(framesByHeight: FramesByHeight, heightOrder: num
   });
   const bars = Math.max(1, Math.floor(quantBars));
   if (bars >= base.length) {
-    // bucket speeds to same resolution even if not aggregating intensities
     const sp = speeds.slice(0);
     return { repHeight: rep, intensities: base, speeds: sp };
   }
@@ -173,16 +176,18 @@ function computeTimelineDerived(framesByHeight: FramesByHeight, heightOrder: num
   for (let i = 0; i < bars; i += 1) {
     const start = Math.floor(i * bucketSize);
     const end = Math.floor((i + 1) * bucketSize);
-    let maxIntensity = 0;
-    let maxSpeed = 0;
+    let sumIntensity = 0;
+    let sumSpeed = 0;
+    let count = 0;
     for (let j = start; j < end && j < base.length; j += 1) {
       const bi = base[j];
-      if (bi > maxIntensity) maxIntensity = bi;
+      sumIntensity += bi;
       const sj = speeds[j] ?? 0;
-      if (sj > maxSpeed) maxSpeed = sj;
+      sumSpeed += sj;
+      count += 1;
     }
-    quantized[i] = maxIntensity;
-    speedBuckets[i] = maxSpeed;
+    quantized[i] = count > 0 ? (sumIntensity / count) : 0;
+    speedBuckets[i] = count > 0 ? (sumSpeed / count) : 0;
   }
   return { repHeight: rep, intensities: quantized, speeds: speedBuckets };
 }

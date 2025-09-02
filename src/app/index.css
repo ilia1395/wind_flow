@@ -50,12 +50,12 @@
   --spacing: 0.25rem;
 
   /* Unified wind speed palette by ranges (m/s) */
-  --wind-palette-0-5: #3b0a9e;
-  --wind-palette-5-10: #2843d8;
-  --wind-palette-10-15: #2aa5f9;
-  --wind-palette-15-20: #2ad4f9;
-  --wind-palette-20-25: #2af9d2;
-  --wind-palette-25-plus: #2df97a;
+  --wind-palette-0-5: #424270;    /* midnight blue */
+  --wind-palette-5-10: #71a6d2;   /* blue glacier */
+  --wind-palette-10-15: #b19cd9;  /* misty purple */
+  --wind-palette-15-20: #ff7f50;  /* coral orange */
+  --wind-palette-20-25: #fffdd0;  /* cream yellow */
+  --wind-palette-25-plus: #fffdd0;/* cream yellow (cap) */
 }
 
 .dark {
