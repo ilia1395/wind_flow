@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { WIND_SPEED_PALETTE, DEFAULT_SPEED_BINS } from '@/shared/constants/windPalette';
 
@@ -25,6 +25,9 @@ type PlaybackControlsViewProps = {
   onPlaybackRateChange: (rate: number) => void;
   frameIndex: number;
   onFrameIndexChange: (index: number) => void;
+  onScrubStartFine?: () => void;
+  onScrubEndFine?: () => void;
+  onScrubIndex?: (index: number) => void;
   timelineLength: number;
   displayTimeLabel?: string;
   intensities?: number[];
@@ -40,6 +43,9 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   onPlaybackRateChange,
   frameIndex,
   onFrameIndexChange,
+  onScrubStartFine,
+  onScrubEndFine,
+  onScrubIndex,
   timelineLength,
   displayTimeLabel,
   intensities = [],
@@ -51,6 +57,33 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   const barCount = Math.max(1, intensities.length);
   const barWidth = CHART_WIDTH / barCount;
   const selectedBarIndex = Math.min(barCount - 1, Math.max(0, Math.floor((clampedIndex / Math.max(1, timelineLength - 1)) * barCount)));
+  const rangeRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    const el = rangeRef.current;
+    if (!el) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.button === 0 && e.shiftKey) {
+        onScrubStartFine && onScrubStartFine();
+      }
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.button === 0) {
+        onScrubEndFine && onScrubEndFine();
+      }
+    };
+    const onInput = () => {
+      const v = Number(el.value);
+      if (onScrubIndex) onScrubIndex(v);
+    };
+    el.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('input', onInput);
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('input', onInput);
+    };
+  }, [onScrubStartFine, onScrubEndFine, onScrubIndex]);
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border bg-card/60 p-2 text-card-foreground backdrop-blur">
       <div className="relative w-full" style={{ height: CHART_HEIGHT }}>
@@ -82,6 +115,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
           })}
         </svg>
         <input
+          ref={rangeRef}
           aria-label="Timeline"
           type="range"
           min={0}

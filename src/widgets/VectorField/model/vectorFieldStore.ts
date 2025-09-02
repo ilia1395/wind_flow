@@ -31,18 +31,17 @@ type VectorFieldActions = {
 export type VectorFieldStore = VectorFieldConfig & VectorFieldActions;
 
 export const useVectorFieldStore = create<VectorFieldStore>((set) => ({
-  numParticles: 1000,
-  trailLength: 128,
-  lifespan: [10, 14],
-  interpolatedVyBoost: 2.0,
-  trailDecayPerSecond: 1.0,
-  particleSize: 1.2,
-  trailDotBaseSize: 0.075,
+  numParticles: 2000,
+  trailLength: 32,
+  lifespan: [10, 12],
+  interpolatedVyBoost: 1.0,
+  trailDecayPerSecond: 0.9,
+  particleSize: 1.5,
+  trailDotBaseSize: 0.175,
   favorMeasured: 0.9,
   colorBySpeed: true,
   interpolatedColor: [0.8, 0.8, 0.8],
   interpolatedOpacity: 0.1,
-
   setNumParticles: (n) => set({ numParticles: Math.max(1, Math.floor(n)) }),
   setTrailLength: (n) => set({ trailLength: Math.max(1, Math.floor(n)) }),
   setLifespan: (a) => set({ lifespan: [Math.max(0.1, a[0]), Math.max(a[0], a[1])] }),

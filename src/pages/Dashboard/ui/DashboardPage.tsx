@@ -18,7 +18,7 @@ export function DashboardPage() {
           <CardContent className="p-0 h-full flex flex-col">
             <div className="relative flex-1 min-h-0">
               <Canvas style={{ width: '100%', height: '100%' }} camera={{ position: [0, 0, 8192], fov: 1, near: 0.1, far: 500000 }}>
-                <OrbitControls enableDamping={true} enablePan={true} enableZoom={true} />
+                <OrbitControls enableDamping={true} enablePan={false} enableZoom={true} />
                 <VectorField />
               </Canvas>
             </div>

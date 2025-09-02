@@ -1,5 +1,5 @@
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { PlaybackControlsView } from './PlaybackControlsView';
 import { usePlaybackStore } from '@/features/Playback';
 import { useWindStore } from '@/entities/WindData';
@@ -9,14 +9,20 @@ import { useWindStore } from '@/entities/WindData';
 export const PlaybackControls: React.FC = () => {
   const isPlaying = usePlaybackStore((s) => s.isPlaying);
   const playbackRate = usePlaybackStore((s) => s.playbackRate);
-  const setIsPlaying = usePlaybackStore((s) => s.setIsPlaying);
+  // const setIsPlaying = usePlaybackStore((s) => s.setIsPlaying);
   const toggleIsPlaying = usePlaybackStore((s) => s.toggleIsPlaying);
   const setPlaybackRate = usePlaybackStore((s) => s.setPlaybackRate);
-  const resetTime = usePlaybackStore((s) => s.resetTime);
-  const advanceTimeBy = usePlaybackStore((s) => s.advanceTimeBy);
+  const stopPlayback = usePlaybackStore((s) => s.stop);
+  const startLoop = usePlaybackStore((s) => s.startLoop);
+  const stopLoop = usePlaybackStore((s) => s.stopLoop);
+  const seekToIndex = usePlaybackStore((s) => s.seekToIndex);
+  const stepPrev = usePlaybackStore((s) => s.stepPrev);
+  const stepNext = usePlaybackStore((s) => s.stepNext);
+  const setFineMouseScrub = usePlaybackStore((s) => s.setFineMouseScrub);
+  const scrubToIndex = usePlaybackStore((s) => s.scrubToIndex);
 
   const frameIndex = useWindStore((s) => s.frameIndex);
-  const setFrameIndex = useWindStore((s) => s.setFrameIndex);
+  // const setFrameIndex = useWindStore((s) => s.setFrameIndex);
   const framesByHeight = useWindStore((s) => s.framesByHeight);
   const heightOrder = useWindStore((s) => s.heightOrder);
   const storeRepHeight = useWindStore((s) => s.repHeight);
@@ -52,48 +58,41 @@ export const PlaybackControls: React.FC = () => {
     return undefined;
   }, [currentFrame]);
 
-  const rafRef = useRef(0);
-  const lastRef = useRef(performance.now());
-  const isPlayingRef = useRef(isPlaying);
-  const playbackRateRef = useRef(playbackRate);
-  const timelineLengthRef = useRef(timelineLength);
-  const frameIndexRef = useRef(frameIndex);
-
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-  useEffect(() => { playbackRateRef.current = playbackRate; }, [playbackRate]);
-  useEffect(() => { timelineLengthRef.current = timelineLength; }, [timelineLength]);
-  useEffect(() => { frameIndexRef.current = frameIndex; }, [frameIndex]);
-
   useEffect(() => {
-    const loop = () => {
-      const now = performance.now();
-      const dt = (now - lastRef.current) / 1000;
-      lastRef.current = now;
-      const playing = isPlayingRef.current;
-      const len = timelineLengthRef.current;
-      const rate = playbackRateRef.current;
-      if (playing && len > 0) {
-        const framesPerSecond = 2 * rate;
-        const nextIdx = (frameIndexRef.current + dt * framesPerSecond) % len;
-        frameIndexRef.current = nextIdx;
-        setFrameIndex(nextIdx);
-        advanceTimeBy(dt * rate);
+    startLoop();
+    return () => { stopLoop(); };
+  }, [startLoop, stopLoop]);
+
+  // keyboard shortcuts: Left/Right, Shift modifies sensitivity (fine steps)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        stepPrev({ fine: e.shiftKey });
+        e.preventDefault();
+      } else if (e.key === 'ArrowRight') {
+        stepNext({ fine: e.shiftKey });
+        e.preventDefault();
+      } else if (e.key === ' ') {
+        toggleIsPlaying();
+        e.preventDefault();
       }
-      rafRef.current = requestAnimationFrame(loop);
     };
-    rafRef.current = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [setFrameIndex, advanceTimeBy]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [stepPrev, stepNext, toggleIsPlaying]);
 
   return (
     <PlaybackControlsView
       isPlaying={isPlaying}
       onTogglePlay={toggleIsPlaying}
-      onStop={() => { setIsPlaying(false); setFrameIndex(0); resetTime(); }}
+      onStop={() => { stopPlayback(); }}
       playbackRate={playbackRate}
       onPlaybackRateChange={setPlaybackRate}
       frameIndex={frameIndex}
-      onFrameIndexChange={setFrameIndex}
+      onFrameIndexChange={seekToIndex}
+      onScrubStartFine={() => setFineMouseScrub(true)}
+      onScrubEndFine={() => setFineMouseScrub(false)}
+      onScrubIndex={(i) => scrubToIndex(i)}
       timelineLength={timelineLength}
       displayTimeLabel={displayTimeLabel}
       intensities={intensities}

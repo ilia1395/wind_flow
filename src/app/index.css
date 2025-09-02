@@ -50,9 +50,9 @@
   --spacing: 0.25rem;
 
   /* Unified wind speed palette by ranges (m/s) */
-  --wind-palette-0-5: #424270;    /* midnight blue */
+  --wind-palette-0-5: #4e4680;    /* midnight blue */
   --wind-palette-5-10: #71a6d2;   /* blue glacier */
-  --wind-palette-10-15: #b19cd9;  /* misty purple */
+  --wind-palette-10-15: #9b7ab3;  /* misty purple */
   --wind-palette-15-20: #ff7f50;  /* coral orange */
   --wind-palette-20-25: #fffdd0;  /* cream yellow */
   --wind-palette-25-plus: #fffdd0;/* cream yellow (cap) */
