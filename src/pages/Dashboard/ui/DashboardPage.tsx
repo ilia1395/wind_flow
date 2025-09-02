@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber';
 import { VectorField } from '@/widgets/VectorField';
 import { WindDataPanel } from '@/widgets/WindDataPanel/ui/WindDataPanel';
+import { WindRosePanel } from '@/widgets/WindRosePanel';
 import { PlaybackControls } from '@/widgets/PlaybackControls'
 
 import { OrbitControls } from '@react-three/drei';
@@ -14,12 +15,17 @@ export function DashboardPage() {
           <CardHeader className="py-3">
             <CardTitle className="text-base">Vector Field</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 h-full">
-            <div className="relative h-[45dvh] md:h-full">
+          <CardContent className="p-0 h-full flex flex-col">
+            <div className="relative flex-1 min-h-0">
               <Canvas style={{ width: '100%', height: '100%' }} camera={{ position: [0, 0, 8192], fov: 1, near: 0.1, far: 500000 }}>
                 <OrbitControls enableDamping={true} enablePan={false} enableZoom={true} />
                 <VectorField />
               </Canvas>
+            </div>
+            <div className="border-t border-border/50 h-40">
+              <div className="p-3">
+                <PlaybackControls />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -29,21 +35,16 @@ export function DashboardPage() {
         {/* <div className="flex items-center justify-end">
           <ThemeToggle />
         </div> */}
-        <div className="md:max-h-[calc(100dvh-1rem)] md:overflow-y-auto pr-1 w-full">
+        <div className="h-full pr-1 w-full flex flex-col flex-1 min-h-0">
           <WindDataPanel />
+          <div className="h-3" />
+          <div className="flex-1 min-h-0">
+            <WindRosePanel />
+          </div>
         </div>
       </div>
 
-      <div className="md:[grid-column:1/2] md:[grid-row:3/4] flex items-center order-3 md:order-none ">
-        <Card className="w-full bg-card/60 backdrop-blur border-border/50">
-          <CardHeader className="py-3">
-            <CardTitle className="text-base">Playback</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <PlaybackControls />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Removed standalone Playback card; controls are merged into Vector Field card */}
     </div>
   );
 }
