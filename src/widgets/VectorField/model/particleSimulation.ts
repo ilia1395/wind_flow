@@ -31,6 +31,8 @@ export type ParticleSimulation = {
 
   reset(numParticles: number, sliceYs?: number[]): void;
   step(fieldSampler: FieldSampler | undefined, timeSeconds: number, dt: number, sliceYs?: number[]): void;
+  seekToTime(timeSeconds: number): void;
+  getHistoryInfo(): { count: number; capacity: number; minTime: number; maxTime: number };
 };
 
 export function createParticleSimulation(numParticles: number, config: ParticleSimConfig): ParticleSimulation {
@@ -56,6 +58,17 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
   const trailOpacities = new Float32Array(numParticles * trailLength).fill(0);
   const trailDotSizes = new Float32Array(numParticles * trailLength).fill(0);
   let trailHead = 0;
+
+  // --- History ring buffer (to support scrubbing/rewind) -------------------------------------
+  const historyCapacity = Math.max(1, trailLength);
+  const historyPositions = new Float32Array(historyCapacity * numParticles * 3);
+  const historyColors = new Float32Array(historyCapacity * numParticles * 3);
+  const historyAngles = new Float32Array(historyCapacity * numParticles);
+  const historyOpacities = new Float32Array(historyCapacity * numParticles);
+  const historySpeeds = new Float32Array(historyCapacity * numParticles);
+  const historyTimes = new Float64Array(historyCapacity);
+  let historyHead = 0;   // next write index
+  let historyCount = 0;  // how many valid frames stored (<= capacity)
 
   // --- Shared wind speed palette (CSS vars -> RGB) ------------------------------------------
   let paletteRgb: Array<[number, number, number]> | null = null;
@@ -133,6 +146,10 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
     trailDotSizes.fill(0);
     trailColors.fill(0);
     trailHead = 0;
+
+    // clear history
+    historyHead = 0;
+    historyCount = 0;
   }
 
   function step(fieldSampler: FieldSampler | undefined, currentTime: number, delta: number, sliceYs?: number[]) {
@@ -208,6 +225,20 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
       }
     }
 
+    // Record snapshot into history (after particle state is updated for this frame)
+    {
+      const basePos = historyHead * numParticles * 3;
+      const baseSca = historyHead * numParticles;
+      historyPositions.set(positions, basePos);
+      historyColors.set(colors, basePos);
+      historyAngles.set(angles, baseSca);
+      historyOpacities.set(opacities, baseSca);
+      historySpeeds.set(curSpeed, baseSca);
+      historyTimes[historyHead] = currentTime;
+      historyHead = (historyHead + 1) % historyCapacity;
+      if (historyCount < historyCapacity) historyCount += 1;
+    }
+
     const decay = Math.pow(config.trailDecayPerSecond, delta);
     for (let c = 0; c < trailColors.length; c += 1) trailColors[c] *= decay;
     for (let a = 0; a < trailOpacities.length; a += 1) trailOpacities[a] *= decay;
@@ -248,7 +279,94 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
     trailHead = (trailHead + 1) % trailLength;
   }
 
-  return { positions, colors, angles, sizes, opacities, trailPositions, trailColors, trailOpacities, trailDotSizes, reset, step };
+  // Utility: rebuild current particle and trail buffers from a chosen history index
+  function applyFromHistoryIndex(historyIndex: number) {
+    if (historyCount === 0) return;
+    const safeIndex = ((historyIndex % historyCapacity) + historyCapacity) % historyCapacity;
+    const basePos = safeIndex * numParticles * 3;
+    const baseSca = safeIndex * numParticles;
+    // restore current particle buffers
+    positions.set(historyPositions.subarray(basePos, basePos + numParticles * 3));
+    colors.set(historyColors.subarray(basePos, basePos + numParticles * 3));
+    angles.set(historyAngles.subarray(baseSca, baseSca + numParticles));
+    opacities.set(historyOpacities.subarray(baseSca, baseSca + numParticles));
+
+    // rebuild trails from up to trailLength historical frames ending at safeIndex
+    // j goes from oldest to newest across trail buffer rows
+    for (let j = 0; j < trailLength; j += 1) {
+      const framesBack = (trailLength - 1 - j);
+      // compute the history index for this trail row
+      let idx = safeIndex - framesBack;
+      // check if within available history window
+      let valid = true;
+      if (historyCount < trailLength && framesBack >= historyCount) valid = false;
+      if (idx < 0) idx += historyCapacity;
+      const rowBasePos = (j * numParticles) * 3;
+      const rowBaseSca = j * numParticles;
+      if (!valid) {
+        // zero out if we do not have data that far back
+        trailPositions.fill(0, rowBasePos, rowBasePos + numParticles * 3);
+        trailColors.fill(0, rowBasePos, rowBasePos + numParticles * 3);
+        trailOpacities.fill(0, rowBaseSca, rowBaseSca + numParticles);
+        trailDotSizes.fill(0, rowBaseSca, rowBaseSca + numParticles);
+        continue;
+      }
+      const hBasePos = idx * numParticles * 3;
+      const hBaseSca = idx * numParticles;
+      // copy positions and colors directly
+      trailPositions.set(historyPositions.subarray(hBasePos, hBasePos + numParticles * 3), rowBasePos);
+      trailColors.set(historyColors.subarray(hBasePos, hBasePos + numParticles * 3), rowBasePos);
+      // copy opacities
+      trailOpacities.set(historyOpacities.subarray(hBaseSca, hBaseSca + numParticles), rowBaseSca);
+      // compute dot sizes from recorded speed/opacities
+      for (let p = 0; p < numParticles; p += 1) {
+        const o = historyOpacities[hBaseSca + p];
+        const sp = historySpeeds[hBaseSca + p];
+        const isInterpolatedTrail = o < 1.0;
+        let intensity = 0.4;
+        if (!isInterpolatedTrail) {
+          const t = Math.max(0.1, Math.min(1, sp / 20));
+          intensity = t;
+        }
+        const vertexIndex = rowBaseSca + p;
+        const boost = 0.8 * intensity;
+        trailDotSizes[vertexIndex] = config.trailDotBaseSize + boost;
+      }
+    }
+    // set trailHead to next write position (newest was at last row)
+    trailHead = 0;
+  }
+
+  function seekToTime(timeSeconds: number) {
+    if (historyCount === 0) return;
+    // Find the history frame closest to timeSeconds (search backward from newest)
+    const newestIndex = (historyHead - 1 + historyCapacity) % historyCapacity;
+    let bestIndex = newestIndex;
+    let bestScore = Math.abs(historyTimes[newestIndex] - timeSeconds);
+    let stepsChecked = 1;
+    for (let n = 1; n < historyCount; n += 1) {
+      const idx = (newestIndex - n + historyCapacity) % historyCapacity;
+      const score = Math.abs(historyTimes[idx] - timeSeconds);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIndex = idx;
+      }
+      stepsChecked += 1;
+    }
+    applyFromHistoryIndex(bestIndex);
+  }
+
+  function getHistoryInfo() {
+    const count = historyCount;
+    const capacity = historyCapacity;
+    const newestIndex = count > 0 ? (historyHead - 1 + historyCapacity) % historyCapacity : 0;
+    const oldestIndex = count > 0 ? ((historyHead - count + historyCapacity) % historyCapacity) : 0;
+    const maxTime = count > 0 ? historyTimes[newestIndex] : 0;
+    const minTime = count > 0 ? historyTimes[oldestIndex] : 0;
+    return { count, capacity, minTime, maxTime };
+  }
+
+  return { positions, colors, angles, sizes, opacities, trailPositions, trailColors, trailOpacities, trailDotSizes, reset, step, seekToTime, getHistoryInfo };
 }
 
 

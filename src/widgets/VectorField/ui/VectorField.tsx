@@ -165,9 +165,18 @@ const ParticleField: React.FC<{
     trailPointUniforms.uViewportHeight.value = vh;
     trailPointUniforms.uFov.value = fov;
 
-    if (!isPlaying) return;
-    sim.step(fieldSampler as FieldSampler | undefined, currentTime, delta, sliceYs);
+    // Decide whether to advance the simulation or seek into history
+    const lastTRef = (useFrame as any)._vf_lastTimeRef || ((useFrame as any)._vf_lastTimeRef = { current: currentTime });
+    const lastT = lastTRef.current as number;
 
+    if (isPlaying && currentTime >= lastT) {
+      sim.step(fieldSampler as FieldSampler | undefined, currentTime, delta, sliceYs);
+    } else {
+      // paused, or time moved backwards/teleported: reconstruct from history
+      sim.seekToTime(currentTime);
+    }
+
+    // Mark geometry attributes dirty after step/seek
     if (pointsRef.current) {
       const geometry = pointsRef.current.geometry as THREE.BufferGeometry;
       (geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
@@ -184,6 +193,8 @@ const ParticleField: React.FC<{
       const aOpacityAttr = geometry.getAttribute('aOpacity') as THREE.BufferAttribute | undefined;
       if (aOpacityAttr) aOpacityAttr.needsUpdate = true;
     }
+
+    lastTRef.current = currentTime;
   });
 
   return (
