@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { FieldSampler, FieldSample } from '@/entities/FieldSampler';
+import { DEFAULT_SPEED_BINS, WIND_SPEED_PALETTE } from '@/shared/constants/windPalette';
 
 export type VectorFieldBounds = [number, number, number];
 
@@ -55,6 +56,44 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
   const trailOpacities = new Float32Array(numParticles * trailLength).fill(0);
   const trailDotSizes = new Float32Array(numParticles * trailLength).fill(0);
   let trailHead = 0;
+
+  // --- Shared wind speed palette (CSS vars -> RGB) ------------------------------------------
+  let paletteRgb: Array<[number, number, number]> | null = null;
+  function hexToRgb01(hex: string): [number, number, number] {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex.trim());
+    if (!m) return [1, 1, 1];
+    const r = parseInt(m[1], 16) / 255;
+    const g = parseInt(m[2], 16) / 255;
+    const b = parseInt(m[3], 16) / 255;
+    return [r, g, b];
+  }
+  function resolveCssVarValue(varRef: string): string | null {
+    try {
+      const varNameMatch = /var\((--[^)]+)\)/.exec(varRef);
+      const varName = varNameMatch ? varNameMatch[1] : null;
+      if (!varName || typeof window === 'undefined') return null;
+      const val = getComputedStyle(document.documentElement).getPropertyValue(varName);
+      return val ? val.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+  function getPaletteRgb(): Array<[number, number, number]> {
+    if (paletteRgb) return paletteRgb;
+    paletteRgb = WIND_SPEED_PALETTE.map((ref) => {
+      const resolved = resolveCssVarValue(ref) || '#ffffff';
+      return hexToRgb01(resolved);
+    });
+    return paletteRgb;
+  }
+  function speedToBin(v: number, bins: number[] = DEFAULT_SPEED_BINS): number {
+    if (!Number.isFinite(v)) return 0;
+    let b = bins.length - 1; // last bin is open-ended
+    for (let i = 0; i < bins.length - 1; i += 1) {
+      if (v >= bins[i] && v < bins[i + 1]) { b = i; break; }
+    }
+    return b;
+  }
 
   function reset(n: number, sliceYs?: number[]) {
     if (n !== numParticles) {
@@ -133,10 +172,9 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
         const [r, g, b] = config.interpolatedColor;
         colors[i + 0] = r; colors[i + 1] = g; colors[i + 2] = b;
       } else if (config.colorBySpeed) {
-        const tSpeed = Math.max(0, Math.min(1, s.speed / 20));
-        const r = 0.4 + 0.6 * tSpeed;
-        const g = 0.9 - 0.7 * tSpeed;
-        const b = 1 - 0.8 * tSpeed;
+        const pal = getPaletteRgb();
+        const bin = speedToBin(s.speed, DEFAULT_SPEED_BINS);
+        const [r, g, b] = pal[Math.min(bin, pal.length - 1)];
         colors[i + 0] = r; colors[i + 1] = g; colors[i + 2] = b;
       }
 
@@ -190,11 +228,16 @@ export function createParticleSimulation(numParticles: number, config: ParticleS
         trailColors[hi + 0] = r; trailColors[hi + 1] = g; trailColors[hi + 2] = b;
         intensity = 0.4;
       } else {
+        // Color trail by shared wind speed palette
+        const pal = getPaletteRgb();
+        const bin = speedToBin(sNow, DEFAULT_SPEED_BINS);
+        const [r, g, b] = pal[Math.min(bin, pal.length - 1)];
+        trailColors[hi + 0] = r;
+        trailColors[hi + 1] = g;
+        trailColors[hi + 2] = b;
+        // Use normalized speed to scale dot size/opacity boost
         const t = Math.max(0.1, Math.min(1, sNow / 20));
-        intensity = 0.5 * t + 0.5 * t;
-        trailColors[hi + 0] = intensity;
-        trailColors[hi + 1] = 0.6 * (1 - intensity * 0.5);
-        trailColors[hi + 2] = 0.8 * (1 - intensity);
+        intensity = t;
       }
 
       const vertexIndex = trailHead * numParticles + i;

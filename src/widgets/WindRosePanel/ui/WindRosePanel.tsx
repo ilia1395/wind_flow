@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
 import { type WindRoseData, type WindRosePeriod } from '../lib/windRose';
 import { useWindRoseModel } from '../model/useWindRoseModel';
 import { useWindStore } from '@/entities/WindData';
+import { WIND_SPEED_PALETTE } from '@/shared/constants/windPalette';
 
 type PeriodTab = WindRosePeriod;
 
@@ -91,14 +92,11 @@ const RoseSvg: React.FC<{ data: WindRoseData; width: number; height: number }> =
   const sectorAngle = (2 * Math.PI) / data.sectors.length;
   const max = Math.max(1, data.maxTotal);
 
-  // categorical color scale for speed bins (approx rainbow like in the reference)
+  // categorical color scale for speed bins unified with playback controls
   const colors = useMemo(() => {
-    const palette = [
-      '#3b0a9e','#2843d8','#2aa5f9','#2ad4f9','#2af9d2','#2df97a','#6bf92a','#a4f92a','#d6f92a',
-      '#f5e62a','#f9c02a','#f9982a','#f96d2a','#f93f2a','#ed2323','#c4161a','#7a0f0f','#4d0b0b'
-    ];
-    if (data.binEdges.length <= palette.length) return palette.slice(0, data.binEdges.length);
-    return new Array(data.binEdges.length).fill(0).map((_, i) => palette[i % palette.length]);
+    const count = data.binEdges.length;
+    // Map bin edges to CSS palette; if more bins than palette, repeat last
+    return new Array(count).fill(0).map((_, i) => WIND_SPEED_PALETTE[Math.min(i, WIND_SPEED_PALETTE.length - 1)]);
   }, [data.binEdges.length]);
 
   const TEXT_COLOR = '#e5e5e5';

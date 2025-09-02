@@ -1,34 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/shared/components/ui/button';
-
-const WINDROSE_PALETTE = [
-  '#3b0a9e','#2843d8','#2aa5f9','#2ad4f9','#2af9d2','#2df97a','#6bf92a','#a4f92a','#d6f92a',
-  '#f5e62a','#f9c02a','#f9982a','#f96d2a','#f93f2a','#ed2323','#c4161a','#7a0f0f','#4d0b0b'
-];
-const DEFAULT_SPEED_BINS = [0,5,10,15,20,25];
-
-function hexToHsl(hex: string): { h: number; s: number; l: number } {
-  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!m) return { h: 0, s: 0, l: 0 };
-  const r = parseInt(m[1], 16) / 255;
-  const g = parseInt(m[2], 16) / 255;
-  const b = parseInt(m[3], 16) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  let h = 0, s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-      case g: h = (b - r) / d + 2; break;
-      case b: h = (r - g) / d + 4; break;
-    }
-    h /= 6;
-  }
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
-}
+import { WIND_SPEED_PALETTE, DEFAULT_SPEED_BINS } from '@/shared/constants/windPalette';
 
 function speedToBin(speed: number, binEdges: number[] = DEFAULT_SPEED_BINS): number {
   if (!Number.isFinite(speed)) return 0;
@@ -39,12 +12,9 @@ function speedToBin(speed: number, binEdges: number[] = DEFAULT_SPEED_BINS): num
   return b;
 }
 
-function getBarColor(speed: number, isSelected: boolean, isFuture: boolean): string {
+function getBarColor(speed: number): string {
   const bin = speedToBin(speed, DEFAULT_SPEED_BINS);
-  const hex = WINDROSE_PALETTE[Math.min(bin, WINDROSE_PALETTE.length - 1)];
-  const { h, s, l } = hexToHsl(hex);
-  const sat = isFuture ? 0 : s; // future bars desaturated; current keeps original saturation
-  return `hsl(${h} ${sat}% ${l}%)`;
+  return WIND_SPEED_PALETTE[Math.min(bin, WIND_SPEED_PALETTE.length - 1)];
 }
 
 type PlaybackControlsViewProps = {
@@ -95,9 +65,8 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
             const h = Math.max(2, t * CHART_HEIGHT);
             const y = CHART_HEIGHT - h;
             const x = i * barWidth;
-            const isSelected = i === selectedBarIndex;
             const isFuture = i > selectedBarIndex;
-            const color = getBarColor(speeds[i] ?? 0, isSelected, isFuture);
+            const color = getBarColor(speeds[i] ?? 0);
             return (
               <rect
                 key={i}
@@ -106,6 +75,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
                 width={Math.max(1, barWidth - 0.5)}
                 height={h}
                 fill={color}
+                fillOpacity={isFuture ? 0.25 : 1}
               />
             );
           })}
