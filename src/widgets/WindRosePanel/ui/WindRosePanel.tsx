@@ -30,6 +30,7 @@ export const WindRosePanel: React.FC = () => {
         <CardTitle className="text-base">Wind Rose</CardTitle>
         <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodTab)}>
           <TabsList className="mt-2">
+            <TabsTrigger value="2min">2 min</TabsTrigger>
             <TabsTrigger value="10min">10 min</TabsTrigger>
             <TabsTrigger value="1d">1 d</TabsTrigger>
             <TabsTrigger value="1month">1 month</TabsTrigger>
@@ -145,7 +146,7 @@ const RoseSvg: React.FC<{ data: WindRoseData; width: number; height: number }> =
       {/* right-side vertical legend as one stacked bar with speed labels */}
       <g transform={`translate(${padding * 4 + roseSize}, ${padding})`}>
         {data.binEdges.map((edge, i) => {
-          const h = (roseSize - padding) / data.binEdges.length;
+          const h = (roseSize - padding) / data.binEdges.length + 5;
           const y = (data.binEdges.length - 1 - i) * h; // highest speeds on top
           return (
             <g key={i}>

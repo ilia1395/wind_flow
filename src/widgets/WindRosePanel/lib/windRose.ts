@@ -12,7 +12,7 @@ export type WindRoseData = {
   binEdges: number[]; // inclusive lower bounds, last edge is the lower bound for the open-ended bin
 };
 
-export type WindRosePeriod = '10min' | '1d' | '1month';
+export type WindRosePeriod = '2min' | '10min' | '1d' | '1month';
 
 // Default bins similar to common wind-rose scales (m/s)
 export const DEFAULT_SPEED_BINS: number[] = [
@@ -20,6 +20,7 @@ export const DEFAULT_SPEED_BINS: number[] = [
 ];
 
 export function periodToSeconds(period: WindRosePeriod): number {
+  if (period === '2min') return 120; // 2 minutes (testing)
   if (period === '10min') return 600; // 10 minutes
   if (period === '1d') return 86400; // 1 day
   return 30 * 86400; // 1 month (approx 30 days)

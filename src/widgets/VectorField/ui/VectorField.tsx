@@ -251,7 +251,7 @@ export const VectorField: React.FC<Props> = () => {
 
   const boxSize: [number, number, number] = [bounds[0] * 2, bounds[1] * 2, bounds[2] * 2];
   const floorY = -bounds[1] + 0.02;
-  const labelMargin = 6;
+  const labelMargin = 12;
   const edgeLabelMargin = 2;
 
   return (
