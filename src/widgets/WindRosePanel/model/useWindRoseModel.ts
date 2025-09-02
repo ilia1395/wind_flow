@@ -7,8 +7,6 @@ export function useWindRoseModel(period: WindRosePeriod, selectedHeight?: number
   const framesByHeight = useWindStore((s) => s.framesByHeight);
   const heights = useWindStore((s) => s.heightOrder);
   const frameIndex = useWindStore((s) => s.frameIndex);
-  const getFramesForHeight = useWindStore((s) => s.getFramesForHeight);
-  const getCurrentUnixTime = useWindStore((s) => s.getCurrentUnixTime);
 
   const repHeight = useMemo(() => {
     let maxLen = 0;
@@ -24,8 +22,10 @@ export function useWindRoseModel(period: WindRosePeriod, selectedHeight?: number
   }, [framesByHeight, heights]);
 
   const currentTime = useMemo(() => {
-    return getCurrentUnixTime();
-  }, [getCurrentUnixTime, frameIndex]);
+    const arr = framesByHeight[repHeight] || [];
+    const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, arr.length - 1));
+    return arr[idx]?.time ?? 0;
+  }, [framesByHeight, repHeight, frameIndex]);
 
   return useMemo(() => {
     const periodSec = periodToSeconds(period);
@@ -72,14 +72,14 @@ export function useWindRoseModel(period: WindRosePeriod, selectedHeight?: number
       arr = aggregated;
     } else {
       const height = selectedHeight ?? repHeight;
-      arr = getFramesForHeight(height);
+      arr = framesByHeight[height] || [];
     }
     return computeWindRose(arr, currentTime, {
       periodSec,
       sectorCount: 16,
       angleOffsetDeg: 90,
     });
-  }, [framesByHeight, getFramesForHeight, heights, selectedHeight, repHeight, currentTime, period]);
+  }, [framesByHeight, heights, selectedHeight, repHeight, currentTime, period]);
 }
 
 
