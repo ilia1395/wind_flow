@@ -98,7 +98,26 @@ export function computeWindMetrics(
     perHeightRT[h] = { v, dir: f.directionDeg ?? 0 };
   }
 
-  const rtDirStats = computeDirStats(rtSpeeds, rtDirs);
+  // Realtime: compute mean speed/dir based on selected height range if provided
+  let rtDirStats: DirStats;
+  if (
+    typeof refBottomHeight === 'number' &&
+    typeof refTopHeight === 'number'
+  ) {
+    const hBot = Math.min(refBottomHeight, refTopHeight);
+    const hTop = Math.max(refBottomHeight, refTopHeight);
+    const inRange = Object.entries(perHeightRT)
+      .filter(([h]) => {
+        const hn = Number(h);
+        return hn >= hBot && hn <= hTop;
+      })
+      .map(([, v]) => v);
+    const sp = inRange.map((v) => v.v);
+    const dr = inRange.map((v) => v.dir);
+    rtDirStats = computeDirStats(sp, dr);
+  } else {
+    rtDirStats = computeDirStats(rtSpeeds, rtDirs);
+  }
   const gustAvg = rtGusts.length ? rtGusts.reduce((a, b) => a + b, 0) / rtGusts.length : 0;
   const tiAvg = tiVals.length ? tiVals.reduce((a, b) => a + b, 0) / tiVals.length : 0;
   // Choose reference pair for realtime calculations
@@ -154,7 +173,26 @@ export function computeWindMetrics(
     perHeightAvg[h] = { v: vAvg, dir: dAvg };
   }
 
-  const avgDirStats = computeDirStats(avgSpeeds, avgDirs);
+  // 10-min average: compute mean speed/dir based on selected height range if provided
+  let avgDirStats: DirStats;
+  if (
+    typeof refBottomHeight === 'number' &&
+    typeof refTopHeight === 'number'
+  ) {
+    const hBot = Math.min(refBottomHeight, refTopHeight);
+    const hTop = Math.max(refBottomHeight, refTopHeight);
+    const inRange = Object.entries(perHeightAvg)
+      .filter(([h]) => {
+        const hn = Number(h);
+        return hn >= hBot && hn <= hTop;
+      })
+      .map(([, v]) => v);
+    const sp = inRange.map((v) => v.v);
+    const dr = inRange.map((v) => v.dir);
+    avgDirStats = computeDirStats(sp, dr);
+  } else {
+    avgDirStats = computeDirStats(avgSpeeds, avgDirs);
+  }
   const tiAvg10 = avgTIs.length ? avgTIs.reduce((a, b) => a + b, 0) / avgTIs.length : 0;
   // Choose reference pair for 10-min averages
   let avBot: { h: number; v: number; dir: number } | null = null;

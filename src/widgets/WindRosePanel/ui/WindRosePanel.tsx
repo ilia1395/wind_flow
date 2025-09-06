@@ -38,17 +38,22 @@ export const WindRosePanel: React.FC = () => {
           </TabsList>
         </Tabs>
         {heights.length > 0 && (
-          <Tabs
-            value={height != null ? String(height) : ''}
-            onValueChange={(v) => setHeight(v === 'combined' ? 'combined' : Number(v))}
-          >
-            <TabsList className="mt-2 flex flex-wrap">
-              <TabsTrigger key={'combined'} value={'combined'}>combined</TabsTrigger>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Heights:</span>
+            <select
+              className="bg-background/60 border border-border/50 rounded px-2 py-1 text-sm"
+              value={height != null ? String(height) : ''}
+              onChange={(e) => {
+                const v = e.target.value;
+                setHeight(v === 'combined' ? 'combined' : Number(v));
+              }}
+            >
+              <option value="combined">combined</option>
               {heights.map((h) => (
-                <TabsTrigger key={h} value={String(h)}>{h} m</TabsTrigger>
+                <option key={h} value={String(h)}>{h} m</option>
               ))}
-            </TabsList>
-          </Tabs>
+            </select>
+          </div>
         )}
       </CardHeader>
       <CardContent className="pt-2 flex-1 min-h-0">
