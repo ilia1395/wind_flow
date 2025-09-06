@@ -1,9 +1,10 @@
+import { useMemo, useState, useEffect } from "react";
+
 import { WindDataPanelView } from "../ui/WindDataPanelView";
 import { useWindStore } from "@/entities/WindData";
 import { computeWindMetrics } from '../lib/metrics';
-import { type Mode } from "../types/panelTypes";
 
-import { useMemo, useState, useEffect } from "react";
+import type { Mode } from "../types/panelTypes";
 
 export function WindDataPanel () {
   const heights = useWindStore((s) => s.heightOrder);

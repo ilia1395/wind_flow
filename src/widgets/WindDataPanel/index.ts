@@ -1,1 +1,1 @@
-export { WindDataPanel } from './ui/WindDataPanelView';
+export { WindDataPanel } from './model/WindDataPanel';

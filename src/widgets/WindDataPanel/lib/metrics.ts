@@ -28,6 +28,8 @@ export function formatDeg(deg: number): string {
   return `${d}°`;
 }
 
+
+// TODO: move to WindStore entity
 export function computeWindMetrics(
   framesByHeight: FramesByHeight,
   heights: number[],

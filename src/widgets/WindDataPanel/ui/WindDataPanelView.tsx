@@ -1,4 +1,5 @@
 import React from 'react';
+
 import { formatDeg } from '../lib/metrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
@@ -52,10 +53,8 @@ export const WindDataPanelView: React.FC<WindDataPanelViewProps> = ({ mode, setM
             <div className="grid grid-cols-2 gap-2">
               <Metric label="Current Speed" value={`${rt.speed.toFixed(1)} m/s`} />
               <Metric label="Direction" value={formatDeg(rt.dir)} />
-              {/* <Metric label="Gusts" value={`${rt.gust.toFixed(1)} m/s`} /> */}
               <Metric label="Shear" value={`${rt.shearPer100m.toFixed(2)} m/s`} />
               <Metric label="Veer" value={`${rt.veerDeg.toFixed(0)}°`} />
-              {/* <Metric label="Turbulence (TI)" value={`${(rt.ti * 100).toFixed(1)}%`} /> */}
             </div>
           </TabsContent>
           <TabsContent value="avg10min" className="border-none p-0">
@@ -64,9 +63,6 @@ export const WindDataPanelView: React.FC<WindDataPanelViewProps> = ({ mode, setM
               <Metric label="Mean Direction" value={formatDeg(av.dir)} />
               <Metric label="Avg Shear" value={`${av.shearPer100m.toFixed(2)} m/s`} />
               <Metric label="Avg Veer" value={`${av.veerDeg.toFixed(0)}°`} />
-              {/* <Metric label="Turbulence (TI)" value={`${(av.turbulence * 100).toFixed(1)}%`} /> */}
-              {/* <Metric label="Wind Power Density" value={`${av.wpd.toFixed(0)} W/m²`} /> */}
-              {/* <Metric label="Stability" value={av.stability} /> */}
             </div>
           </TabsContent>
         </Tabs>
