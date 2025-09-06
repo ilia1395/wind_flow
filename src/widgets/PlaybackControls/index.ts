@@ -1,1 +1,1 @@
-export { PlaybackControls } from './ui/PlaybackControls';
+export { PlaybackControls } from './model/PlaybackControls';

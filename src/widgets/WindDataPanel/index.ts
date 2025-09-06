@@ -1,0 +1,1 @@
+export { WindDataPanel } from './ui/WindDataPanelView';

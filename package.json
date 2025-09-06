@@ -12,9 +12,6 @@
   "dependencies": {
     "@react-three/drei": "^10.6.1",
     "@react-three/fiber": "^9.3.0",
-    "@react-three/uikit": "^0.8.21",
-    "@react-three/uikit-default": "^0.8.21",
-    "@react-three/xr": "^6.6.22",
     "@tailwindcss/vite": "^4.1.12",
     "@types/three": "^0.179.0",
     "@vitejs/plugin-basic-ssl": "^2.1.0",

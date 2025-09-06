@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { VectorField } from '@/widgets/VectorField';
-import { WindDataPanel } from '@/widgets/WindDataPanel/ui/WindDataPanel';
+import { WindDataPanel } from '@/widgets/WindDataPanel';
 import { WindRosePanel } from '@/widgets/WindRosePanel';
 import { PlaybackControls } from '@/widgets/PlaybackControls'
 

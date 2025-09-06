@@ -1,21 +1,7 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { Button } from '@/shared/components/ui/button';
-import { WIND_SPEED_PALETTE, DEFAULT_SPEED_BINS } from '@/shared/constants/windPalette';
-
-function speedToBin(speed: number, binEdges: number[] = DEFAULT_SPEED_BINS): number {
-  if (!Number.isFinite(speed)) return 0;
-  let b = binEdges.length - 1;
-  for (let i = 0; i < binEdges.length - 1; i += 1) {
-    if (speed >= binEdges[i] && speed < binEdges[i + 1]) { b = i; break; }
-  }
-  return b;
-}
-
-function getBarColor(speed: number): string {
-  const bin = speedToBin(speed, DEFAULT_SPEED_BINS);
-  return WIND_SPEED_PALETTE[Math.min(bin, WIND_SPEED_PALETTE.length - 1)];
-}
+import { getBarColor } from '../lib/getBinsColor';
 
 type PlaybackControlsViewProps = {
   isPlaying: boolean;
@@ -25,14 +11,10 @@ type PlaybackControlsViewProps = {
   onPlaybackRateChange: (rate: number) => void;
   frameIndex: number;
   onFrameIndexChange: (index: number) => void;
-  onScrubStartFine?: () => void;
-  onScrubEndFine?: () => void;
-  onScrubIndex?: (index: number) => void;
   timelineLength: number;
   displayTimeLabel?: string;
   intensities?: number[];
   speeds?: number[];
-  // removed min/max band rendering; keep props out
 };
 
 export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
@@ -43,9 +25,6 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   onPlaybackRateChange,
   frameIndex,
   onFrameIndexChange,
-  onScrubStartFine,
-  onScrubEndFine,
-  onScrubIndex,
   timelineLength,
   displayTimeLabel,
   intensities = [],
@@ -58,32 +37,7 @@ export const PlaybackControlsView: React.FC<PlaybackControlsViewProps> = ({
   const barWidth = CHART_WIDTH / barCount;
   const selectedBarIndex = Math.min(barCount - 1, Math.max(0, Math.floor((clampedIndex / Math.max(1, timelineLength - 1)) * barCount)));
   const rangeRef = useRef<HTMLInputElement | null>(null);
-  useEffect(() => {
-    const el = rangeRef.current;
-    if (!el) return;
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.button === 0 && e.shiftKey) {
-        onScrubStartFine && onScrubStartFine();
-      }
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      if (e.button === 0) {
-        onScrubEndFine && onScrubEndFine();
-      }
-    };
-    const onInput = () => {
-      const v = Number(el.value);
-      if (onScrubIndex) onScrubIndex(v);
-    };
-    el.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('input', onInput);
-    return () => {
-      el.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('input', onInput);
-    };
-  }, [onScrubStartFine, onScrubEndFine, onScrubIndex]);
+
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border bg-card/60 p-2 text-card-foreground backdrop-blur">
       <div className="relative w-full" style={{ height: CHART_HEIGHT }}>

@@ -1,33 +1,5 @@
 import type { FramesByHeight } from '@/entities/WindData';
-
-export type DirStats = {
-  meanSpeed: number;
-  meanDirDeg: number;
-};
-
-export type RealtimeMetrics = {
-  speed: number;
-  dir: number;
-  gust: number;
-  shearPer100m: number;
-  veerDeg: number;
-  ti: number;
-};
-
-export type Avg10Metrics = {
-  speed: number;
-  dir: number;
-  shearPer100m: number;
-  veerDeg: number;
-  turbulence: number;
-  wpd: number;
-  stability: 'Stable' | 'Neutral' | 'Unstable';
-};
-
-export type WindMetrics = {
-  realtime: RealtimeMetrics;
-  avg10: Avg10Metrics;
-};
+import type { DirStats, WindMetrics } from '../types/panelTypes';
 
 export function circularMeanDeg(values: number[]): number {
   if (!values.length) return 0;
@@ -118,8 +90,6 @@ export function computeWindMetrics(
   } else {
     rtDirStats = computeDirStats(rtSpeeds, rtDirs);
   }
-  const gustAvg = rtGusts.length ? rtGusts.reduce((a, b) => a + b, 0) / rtGusts.length : 0;
-  const tiAvg = tiVals.length ? tiVals.reduce((a, b) => a + b, 0) / tiVals.length : 0;
   // Choose reference pair for realtime calculations
   let rtBot: { h: number; v: number; dir: number } | null = null;
   let rtTop: { h: number; v: number; dir: number } | null = null;
@@ -193,7 +163,7 @@ export function computeWindMetrics(
   } else {
     avgDirStats = computeDirStats(avgSpeeds, avgDirs);
   }
-  const tiAvg10 = avgTIs.length ? avgTIs.reduce((a, b) => a + b, 0) / avgTIs.length : 0;
+
   // Choose reference pair for 10-min averages
   let avBot: { h: number; v: number; dir: number } | null = null;
   let avTop: { h: number; v: number; dir: number } | null = null;
@@ -215,33 +185,18 @@ export function computeWindMetrics(
   const shearPer100m10 = avBot && avTop ? ((avTop.v - avBot.v) / hSpan10) * 100 : 0;
   const veerDeg10 = avBot && avTop ? Math.abs(((avTop.dir - avBot.dir + 540) % 360) - 180) : 0;
 
-  const rho = 1.225;
-  const v3Mean = avgSpeeds.length ? avgSpeeds.reduce((a, b) => a + Math.pow(b, 3), 0) / avgSpeeds.length : 0;
-  const wpd = 0.5 * rho * v3Mean;
-
-  const stability = ((): 'Stable' | 'Neutral' | 'Unstable' => {
-    if (tiAvg10 > 0.15 && shearPer100m10 < 0.8) return 'Unstable';
-    if (shearPer100m10 > 1.5 && tiAvg10 < 0.1) return 'Stable';
-    return 'Neutral';
-  })();
-
   return {
     realtime: {
       speed: rtDirStats.meanSpeed,
       dir: rtDirStats.meanDirDeg,
-      gust: gustAvg,
       shearPer100m,
       veerDeg,
-      ti: tiAvg,
     },
     avg10: {
       speed: avgDirStats.meanSpeed,
       dir: avgDirStats.meanDirDeg,
       shearPer100m: shearPer100m10,
       veerDeg: veerDeg10,
-      turbulence: tiAvg10,
-      wpd,
-      stability,
     },
   };
 }

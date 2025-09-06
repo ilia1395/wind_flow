@@ -1,32 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useWindDataPanelMetrics } from '../model/windDataPanelModel';
+import React from 'react';
 import { formatDeg } from '../lib/metrics';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { useWindStore } from '@/entities/WindData';
 
-type Mode = 'realtime' | 'avg10min';
+import type { Mode, RealtimeMetrics, Avg10Metrics } from '../types/panelTypes';
 
- 
+type WindDataPanelViewProps = {
+  mode: Mode;
+  setMode: (mode: Mode) => void;
+  heights: number[];
+  bottomH: number | undefined;
+  setBottomH: (h: number) => void;
+  topH: number | undefined;
+  setTopH: (h: number) => void;
+  rt: RealtimeMetrics;
+  av: Avg10Metrics;
+}
 
-export const WindDataPanel: React.FC = () => {
-  const heights = useWindStore((s) => s.heightOrder);
-  const defaultBottom = useMemo(() => (heights.length ? Math.min(...heights) : undefined), [heights]);
-  const defaultTop = useMemo(() => (heights.length ? Math.max(...heights) : undefined), [heights]);
-
-  const [bottomH, setBottomH] = useState<number | undefined>(defaultBottom);
-  const [topH, setTopH] = useState<number | undefined>(defaultTop);
-  const { realtime: rt, avg10: av } = useWindDataPanelMetrics(bottomH, topH);
-
-  const [mode, setMode] = useState<Mode>('avg10min');
-
-  useEffect(() => {
-    if (heights.length) {
-      setBottomH((prev) => (prev == null ? Math.min(...heights) : prev));
-      setTopH((prev) => (prev == null ? Math.max(...heights) : prev));
-    }
-  }, [heights]);
-
+export const WindDataPanelView: React.FC<WindDataPanelViewProps> = ({ mode, setMode, heights, bottomH, setBottomH, topH, setTopH, rt, av }) => {
   return (
     <Card className="w-full md:min-w-[320px] md:w-auto bg-background/60 backdrop-blur border-border/50">
       <CardHeader className="pb-3">
@@ -44,13 +35,13 @@ export const WindDataPanel: React.FC = () => {
               label="Bottom height"
               heights={heights}
               value={bottomH}
-              onChange={(h) => setBottomH(h)}
+              onChange={(h) => setBottomH(h ?? 0)}
             />
             <HeightSelect
               label="Top height"
               heights={heights}
               value={topH}
-              onChange={(h) => setTopH(h)}
+              onChange={(h) => setTopH(h ?? 0)}
             />
           </div>
         </div>
