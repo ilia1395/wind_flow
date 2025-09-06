@@ -1,4 +1,4 @@
-import type { WindFrame } from '@/entities/WindData/types/types';
+import type { WindFrame } from '@/entities/WindData/lib/types';
 
 export type WindRoseSector = {
   centerDeg: number;

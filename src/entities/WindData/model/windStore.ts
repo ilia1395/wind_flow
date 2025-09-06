@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 import mastCsvUrl from '../../../data/05092013-11112013_23s_res.csv?url';
-import type { FramesByHeight, WindFrame } from '../types/types';
+import type { FramesByHeight, WindFrame } from '../lib/types';
 import { parseMastCsvByHeights } from '../lib/parsing';
 import { fetchCsvText } from '../api/fetchCsv';
 

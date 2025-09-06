@@ -2,8 +2,8 @@
 import * as THREE from 'three';
 import { meteoDirDegToRadXZ } from '@/shared/lib/math/meteoData';
 import { hashNoise } from '@/shared/lib/math/simulation';
-import type { FieldSampler } from '../types/types';
-import type { FramesByHeight, WindFrame } from '@/entities/WindData/types/types';
+import type { FieldSampler } from '../lib/types';
+import type { FramesByHeight, WindFrame } from '@/entities/WindData/lib/types';
 
 
 // Create layered sampler that blends between heights based on Y.

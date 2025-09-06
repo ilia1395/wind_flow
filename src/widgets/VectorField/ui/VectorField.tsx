@@ -9,9 +9,9 @@ import { HeightLabels } from '@/widgets/VectorField/ui/HeightLabels';
 
 import type { FieldSampler } from '@/entities/FieldSampler';
 import type { WindVector } from '../types/types';
-import { usePlaybackStore } from '@/features/Playback/model/playbackStore';
+import { usePlaybackStore } from '@/widgets/PlaybackControls/model/playbackStore';
 import { useVectorFieldModel } from '../model/vectorFieldModel';
-import { computeSliceYs } from '../lib/VectorFieldAppearance';
+import { computeSliceYs } from '../lib/helpers';
 import { createParticleSimulation, type ParticleSimulation } from '../model/particleSimulation';
 import { useVectorFieldStore, selectTrailLength, selectLifespan, selectVyBoost, selectTrailDecay, selectParticleSize, selectTrailDotBaseSize, selectFavorMeasured, selectColorBySpeed, selectInterpolatedColor, selectInterpolatedOpacity, selectNumParticles } from '../model/vectorFieldStore';
 
