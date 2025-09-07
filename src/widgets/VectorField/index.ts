@@ -1,1 +1,1 @@
-export { VectorField } from './ui/VectorField';
+export { VectorField } from './ui/VectorFieldView';

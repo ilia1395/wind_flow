@@ -3,7 +3,7 @@ import { create } from 'zustand';
 type VectorFieldConfig = {
   numParticles: number;
   trailLength: number;
-  lifespan: [number, number];
+  lifespan: { lifeMin: number; lifeMax: number };
   interpolatedVyBoost: number;
   trailDecayPerSecond: number;
   particleSize: number;
@@ -17,7 +17,7 @@ type VectorFieldConfig = {
 type VectorFieldActions = {
   setNumParticles: (n: number) => void;
   setTrailLength: (n: number) => void;
-  setLifespan: (a: [number, number]) => void;
+  setLifespan: (a: { lifeMin: number; lifeMax: number }) => void;
   setVyBoost: (x: number) => void;
   setTrailDecay: (x: number) => void;
   setParticleSize: (x: number) => void;
@@ -33,7 +33,7 @@ export type VectorFieldStore = VectorFieldConfig & VectorFieldActions;
 export const useVectorFieldStore = create<VectorFieldStore>((set) => ({
   numParticles: 2000,
   trailLength: 32,
-  lifespan: [10, 12],
+  lifespan: { lifeMin: 10, lifeMax: 12 },
   interpolatedVyBoost: 1.0,
   trailDecayPerSecond: 0.9,
   particleSize: 1.5,
@@ -44,7 +44,7 @@ export const useVectorFieldStore = create<VectorFieldStore>((set) => ({
   interpolatedOpacity: 0.1,
   setNumParticles: (n) => set({ numParticles: Math.max(1, Math.floor(n)) }),
   setTrailLength: (n) => set({ trailLength: Math.max(1, Math.floor(n)) }),
-  setLifespan: (a) => set({ lifespan: [Math.max(0.1, a[0]), Math.max(a[0], a[1])] }),
+  setLifespan: (a) => set({ lifespan: { lifeMin: Math.max(0.1, a.lifeMin), lifeMax:Math.max(a.lifeMin, a.lifeMax) } }),
   setVyBoost: (x) => set({ interpolatedVyBoost: Math.max(0, x) }),
   setTrailDecay: (x) => set({ trailDecayPerSecond: Math.max(0, x) }),
   setParticleSize: (x) => set({ particleSize: Math.max(0.01, x) }),

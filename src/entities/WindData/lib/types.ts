@@ -16,7 +16,7 @@ export type FramesByHeight = Record<number, WindFrame[]>;
 
 export interface TimelineInfo {
   length: number;
-  repHeight: number;
+  representativeHeight: number;
 }
 
 

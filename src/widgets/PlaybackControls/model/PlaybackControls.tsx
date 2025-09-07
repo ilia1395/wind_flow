@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { PlaybackControlsView } from '../ui/PlaybackControlsView';
-import { usePlaybackStore } from '@/features/Playback';
+import { usePlaybackStore } from './playbackStore';
 import { useWindStore, type WindFrame } from '@/entities/WindData';
 
 export const PlaybackControls: React.FC = () => {
