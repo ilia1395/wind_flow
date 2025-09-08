@@ -3,11 +3,11 @@
 ## Description
 Interactive visualization of the vertical wind profile from LiDAR data: a 3D vector field with particles, a data panel, and a wind rose. Data is aggregated by height levels; time ranges can be switched and the timeline can be played back.
 
-## Demo - [Open on vercel](https://example.com)
+## Demo - [Open on vercel](https://wind-flow.vercel.app/)
 
 ## Preview
 <a href="./preview/preview.jpg" target="_blank">
-  <img src="./preview/preview.jpg" alt="Preview" width="400"/>
+  <img src="./preview/preview.jpg" alt="Preview" width="800"/>
 </a>
 
 ## Functionality
