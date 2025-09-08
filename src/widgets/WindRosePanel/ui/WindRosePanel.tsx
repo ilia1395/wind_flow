@@ -1,14 +1,13 @@
 import React, { useMemo, useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/shared/components/ui/tabs';
-import { type WindRoseData, type WindRosePeriod } from '../lib/windRose';
+
 import { useWindRoseModel } from '../model/useWindRoseModel';
 import { useWindStore } from '@/entities/WindData';
 import { WIND_SPEED_PALETTE } from '@/shared/constants/windPalette';
 
+import type { WindRoseData, WindRosePeriod } from '../lib/windRose';
 type PeriodTab = WindRosePeriod;
-
-// sector count is controlled in the model hook
 
 export const WindRosePanel: React.FC = () => {
   const [period, setPeriod] = useState<PeriodTab>('10min');

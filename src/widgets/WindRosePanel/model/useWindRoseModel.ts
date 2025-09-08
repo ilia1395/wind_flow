@@ -6,26 +6,8 @@ import { computeWindRose, periodToSeconds, type WindRoseData, type WindRosePerio
 export function useWindRoseModel(period: WindRosePeriod, selectedHeight?: number | 'combined'): WindRoseData {
   const framesByHeight = useWindStore((s) => s.framesByHeight);
   const heights = useWindStore((s) => s.heightOrder);
-  const frameIndex = useWindStore((s) => s.frameIndex);
-
-  const representativeHeight = useMemo(() => {
-    let maxLen = 0;
-    let rep = heights[0];
-    for (const h of heights) {
-      const len = (framesByHeight[h] || []).length;
-      if (len > maxLen) {
-        maxLen = len;
-        rep = h;
-      }
-    }
-    return rep;
-  }, [framesByHeight, heights]);
-
-  const currentTime = useMemo(() => {
-    const arr = framesByHeight[representativeHeight] || [];
-    const idx = Math.min(Math.max(Math.floor(frameIndex), 0), Math.max(0, arr.length - 1));
-    return arr[idx]?.time ?? 0;
-  }, [framesByHeight, representativeHeight, frameIndex]);
+  const representativeHeight = useWindStore((s) => s.representativeHeight);
+  const currentTime = useWindStore((s) => s.getCurrentUnixTime());
 
   return useMemo(() => {
     const periodSec = periodToSeconds(period);
@@ -71,8 +53,8 @@ export function useWindRoseModel(period: WindRosePeriod, selectedHeight?: number
       aggregated.sort((a, b) => a.time - b.time);
       arr = aggregated;
     } else {
-      const height = selectedHeight ?? representativeHeight;
-      arr = framesByHeight[height] || [];
+      const height = selectedHeight;
+      arr = framesByHeight[height ?? 0] || [];
     }
     return computeWindRose(arr, currentTime, {
       periodSec,

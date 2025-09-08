@@ -7,7 +7,7 @@ import { DirectionLabels } from '@/widgets/VectorField/ui/DirectionLabels';
 import { HeightLabels } from '@/widgets/VectorField/ui/HeightLabels';
 
 import { usePlaybackStore } from '@/widgets/PlaybackControls/model/playbackStore';
-import { configureFieldSampler } from '../model/FieldSamplerConfig';
+import { configureFieldSampler } from '../model/fieldSamplerConfig';
 import { ParticleField } from './ParticleField';
 
 export const VectorField: React.FC = () => {

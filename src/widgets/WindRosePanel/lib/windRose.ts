@@ -12,7 +12,7 @@ export type WindRoseData = {
   binEdges: number[]; // inclusive lower bounds, last edge is the lower bound for the open-ended bin
 };
 
-export type WindRosePeriod = '2min' | '10min' | '1d' | '1month';
+export type WindRosePeriod = '10min' | '1d' | '1month';
 
 // Default bins similar to common wind-rose scales (m/s)
 export const DEFAULT_SPEED_BINS: number[] = [
@@ -20,10 +20,12 @@ export const DEFAULT_SPEED_BINS: number[] = [
 ];
 
 export function periodToSeconds(period: WindRosePeriod): number {
-  if (period === '2min') return 120; // 2 minutes (testing)
-  if (period === '10min') return 600; // 10 minutes
-  if (period === '1d') return 86400; // 1 day
-  return 30 * 86400; // 1 month (approx 30 days)
+  switch (period) {
+    case '10min': return 600;
+    case '1d': return 86400;
+    case '1month': return 30 * 86400;
+    default: return 60;
+  }
 }
 
 export function computeWindRose(
@@ -41,6 +43,7 @@ export function computeWindRose(
   const binEdges = (options?.binEdges ?? DEFAULT_SPEED_BINS).slice().sort((a, b) => a - b);
   const angleOffsetDeg = options?.angleOffsetDeg ?? 0;
 
+  // initialize sectors
   const sectors: WindRoseSector[] = new Array(sectorCount)
     .fill(0)
     .map((_, i) => ({ centerDeg: (i * 360) / sectorCount, binCounts: new Array(binEdges.length).fill(0), total: 0 }));
@@ -52,6 +55,7 @@ export function computeWindRose(
     return { sectors, maxTotal: 0, binEdges };
   }
 
+  // process frames in reverse chronological order
   for (let i = frames.length - 1; i >= 0; i -= 1) {
     const f = frames[i];
     const t = typeof f.time === 'number' ? f.time : NaN;
@@ -61,11 +65,15 @@ export function computeWindRose(
     const dir = Number(f.directionDeg ?? 0);
     if (!Number.isFinite(speed) || !Number.isFinite(dir)) continue;
 
-    const shifted = ((dir - angleOffsetDeg) % 360 + 360) % 360; // 0..360
-    const idx = Math.floor((shifted + width / 2) / width) % sectorCount; // center-based sectoring
+    // normalize direction to 0..360
+    const shifted = ((dir - angleOffsetDeg) % 360 + 360) % 360;
+    // find sector index based on center-based sectoring
+    const idx = Math.floor((shifted + width / 2) / width) % sectorCount;
 
     // Determine speed bin index
-    let b = binEdges.length - 1; // last bin open-ended
+    // last bin open-ended
+    let b = binEdges.length - 1;
+    // or find the first interval edge[k], edge[k+1] where speed is in the interval
     for (let k = 0; k < binEdges.length - 1; k += 1) {
       if (speed >= binEdges[k] && speed < binEdges[k + 1]) {
         b = k;
@@ -73,10 +81,13 @@ export function computeWindRose(
       }
     }
 
+    // increment count for selected sector bin
     sectors[idx].binCounts[b] += 1;
+    // increment total count for this sector
     sectors[idx].total += 1;
   }
 
+  // find the maximum summarized count across all sectors
   const maxTotal = sectors.reduce((m, s) => Math.max(m, s.total), 0);
   return { sectors, maxTotal, binEdges };
 }
