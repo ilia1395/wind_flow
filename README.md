@@ -3,11 +3,12 @@
 ## Description
 Interactive visualization of the vertical wind profile from LiDAR data: a 3D vector field with particles, a data panel, and a wind rose. Data is aggregated by height levels; time ranges can be switched and the timeline can be played back.
 
-## Demo
-- Online: [link](https://example.com) — replace with your production URL
+## Demo - [Open on vercel](https://example.com)
 
 ## Preview
-- Video: [`preview`](preview/preview.mp4)
+<a href="./preview/preview.jpg" target="_blank">
+  <img src="./preview/preview.jpg" alt="Preview" width="400"/>
+</a>
 
 ## Functionality
 - 3D wind vector field (Three.js + React Three Fiber), scaled to actual LiDAR height levels
@@ -19,7 +20,7 @@ Interactive visualization of the vertical wind profile from LiDAR data: a 3D vec
 ## Data handling
 - Typical LiDAR parameters are used: horizontal and vertical wind speeds (mean, std, max), wind direction, turbulence intensity (TI), and height levels
 - Data source: open UCC dataset of vertical wind profiles (10‑min and ~23‑s resolution) — see Zenodo: [Vertical profiles of urban wind speed…](https://zenodo.org/records/6807666)
-- Currently, data is loaded from a local CSV asset (hardcoded) `src/data/05092013-11112013_23s_res.csv` and parsed by a simple CSV parser with no backend
+- Currently, data is loaded from a local CSV asset (hardcoded) `src/data/05092013-03122013_10min_res.csv` and parsed by a simple CSV parser with no backend
 
 ## Tech stack
 - React, TypeScript, Vite
