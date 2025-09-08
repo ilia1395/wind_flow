@@ -25,7 +25,7 @@ export const WindRosePanel: React.FC = () => {
   const { ref: containerRef, size: containerSize } = useContainerSize();
 
   return (
-    <Card className="w-full h-full md:min-w-[320px] md:w-auto bg-background/60 backdrop-blur border-border/50 flex flex-col min-h-0">
+    <Card className="w-full h-full h-[520px] min-h-0 md:min-w-[320px] md:w-auto bg-background/60 backdrop-blur border-border/50 flex flex-col">
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Wind Rose</CardTitle>
         <Tabs value={period} onValueChange={(v) => setPeriod(v as PeriodTab)}>

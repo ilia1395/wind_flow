@@ -44,8 +44,6 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* Removed standalone Playback card; controls are merged into Vector Field card */}
     </div>
   );
 }
